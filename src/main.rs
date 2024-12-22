@@ -50,17 +50,18 @@ fn main() -> Result<()> {
                     i += 1;
                     let secret = StaticSecret::random_from_rng(&mut rand::thread_rng());
                     let public = PublicKey::from(&secret);
-                    let public = STANDARD.encode(public).into_boxed_str();
-                    let secret = STANDARD.encode(secret).into_boxed_str();
+                    let public = STANDARD.encode(public);
+                    let secret = STANDARD.encode(secret);
                     meshs.push(Mesh::new(
                         format!("{}", i),
                         public,
                         secret,
                         format!("10.0.0.{}", i),
                         format!("fd00::{}", i),
+                        "place.holder.local.arpa:51820",
                     ));
                 }
-                writeln!(file, "{}", Meshs::new(meshs, 24, 64).to_json())?;
+                write!(file, "{}", Meshs::new(meshs, 24, 64).to_json())?;
             }
         }
         Commands::Convert { output } => {

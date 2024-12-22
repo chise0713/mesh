@@ -28,29 +28,32 @@ cat config.json
   "meshs": [
     {
       "tag": "1",
-      "pubkey": "0tnoda1jLLX4bWDmoW19IfE7jPOgMv7i9jr50JLvthI=",
-      "prikey": "uQB1T1YCgbiHbzCKGl8eFbUG0yTk9WEHa2y5blbhJMU=",
+      "pubkey": "YTLfTezjWxunlJjwBbSEBJGhsj6M0rfbore8rbV/tW4=",
+      "prikey": "W1ytmL9FPm0o/l5047TVY4fML4tpRVTRRmej4J3liqQ=",
       "ipv4": "10.0.0.1",
-      "ipv6": "fd00::1"
+      "ipv6": "fd00::1",
+      "endpoint": "place.holder.local.arpa:51820"
     },
     {
       "tag": "2",
-      "pubkey": "5KC3jUkpMlnNZdP0wIts5i63X4HoA1qjsC3wJwiIzGg=",
-      "prikey": "7njxUbzu0+1QLoH0MKt/jS4wjAvckfJPWV2siulaIrA=",
+      "pubkey": "/M5I2YBMTCbMNkIx1hSECkogN+JmW+cPf9aNWX+EGEs=",
+      "prikey": "/OmWhS9gyqOgrxzrxQhBPGNQFpWlaykEnsnBuyfaHzo=",
       "ipv4": "10.0.0.2",
-      "ipv6": "fd00::2"
+      "ipv6": "fd00::2",
+      "endpoint": "place.holder.local.arpa:51820"
     },
     {
       "tag": "3",
-      "pubkey": "rfzedR3Ya9+7ofGpJSzzyFGSESBVPILWp/OfrtSV/hQ=",
-      "prikey": "PL1BkhgWBdWfLsS5ty/RX2NuL7OZ1jIIXiiSOBeDF4Q=",
+      "pubkey": "PL7TVmNXV/M5VnRPNWlMTBgxawD+fGAB2EMEooI1m1Y=",
+      "prikey": "ycqBsFj+hjxJXLcMx5Hgo3F0ZiM+YDMfcJNYlZn+HQ4=",
       "ipv4": "10.0.0.3",
-      "ipv6": "fd00::3"
+      "ipv6": "fd00::3",
+      "endpoint": "place.holder.local.arpa:51820"
     }
   ],
   "ipv4_prefix": 24,
   "ipv6_prefix": 64
-}
+}⏎          
 ```
 ### Convert
 ```shell
@@ -66,45 +69,48 @@ cargo run -- --config config.json convert -o configs/
 ```
 ```ini
 [Interface]
-# PublicKey = 0tnoda1jLLX4bWDmoW19IfE7jPOgMv7i9jr50JLvthI=
-PrivateKey = uQB1T1YCgbiHbzCKGl8eFbUG0yTk9WEHa2y5blbhJMU=
+# PublicKey = YTLfTezjWxunlJjwBbSEBJGhsj6M0rfbore8rbV/tW4=
+PrivateKey = W1ytmL9FPm0o/l5047TVY4fML4tpRVTRRmej4J3liqQ=
 Address = 10.0.0.1/24
 Address = fd00::1/64
 
-
 [Peer]
-PublicKey = 5KC3jUkpMlnNZdP0wIts5i63X4HoA1qjsC3wJwiIzGg=
+PublicKey = /M5I2YBMTCbMNkIx1hSECkogN+JmW+cPf9aNWX+EGEs=
+Endpoint = place.holder.local.arpa:51820
 AllowedIPs = 10.0.0.2/32, fd00::2/128
 
 [Peer]
-PublicKey = rfzedR3Ya9+7ofGpJSzzyFGSESBVPILWp/OfrtSV/hQ=
+PublicKey = PL7TVmNXV/M5VnRPNWlMTBgxawD+fGAB2EMEooI1m1Y=
+Endpoint = place.holder.local.arpa:51820
 AllowedIPs = 10.0.0.3/32, fd00::3/128
 [Interface]
-# PublicKey = 5KC3jUkpMlnNZdP0wIts5i63X4HoA1qjsC3wJwiIzGg=
-PrivateKey = 7njxUbzu0+1QLoH0MKt/jS4wjAvckfJPWV2siulaIrA=
+# PublicKey = /M5I2YBMTCbMNkIx1hSECkogN+JmW+cPf9aNWX+EGEs=
+PrivateKey = /OmWhS9gyqOgrxzrxQhBPGNQFpWlaykEnsnBuyfaHzo=
 Address = 10.0.0.2/24
 Address = fd00::2/64
 
-
 [Peer]
-PublicKey = 0tnoda1jLLX4bWDmoW19IfE7jPOgMv7i9jr50JLvthI=
+PublicKey = YTLfTezjWxunlJjwBbSEBJGhsj6M0rfbore8rbV/tW4=
+Endpoint = place.holder.local.arpa:51820
 AllowedIPs = 10.0.0.1/32, fd00::1/128
 
 [Peer]
-PublicKey = rfzedR3Ya9+7ofGpJSzzyFGSESBVPILWp/OfrtSV/hQ=
+PublicKey = PL7TVmNXV/M5VnRPNWlMTBgxawD+fGAB2EMEooI1m1Y=
+Endpoint = place.holder.local.arpa:51820
 AllowedIPs = 10.0.0.3/32, fd00::3/128
 [Interface]
-# PublicKey = rfzedR3Ya9+7ofGpJSzzyFGSESBVPILWp/OfrtSV/hQ=
-PrivateKey = PL1BkhgWBdWfLsS5ty/RX2NuL7OZ1jIIXiiSOBeDF4Q=
+# PublicKey = PL7TVmNXV/M5VnRPNWlMTBgxawD+fGAB2EMEooI1m1Y=
+PrivateKey = ycqBsFj+hjxJXLcMx5Hgo3F0ZiM+YDMfcJNYlZn+HQ4=
 Address = 10.0.0.3/24
 Address = fd00::3/64
 
-
 [Peer]
-PublicKey = 0tnoda1jLLX4bWDmoW19IfE7jPOgMv7i9jr50JLvthI=
+PublicKey = YTLfTezjWxunlJjwBbSEBJGhsj6M0rfbore8rbV/tW4=
+Endpoint = place.holder.local.arpa:51820
 AllowedIPs = 10.0.0.1/32, fd00::1/128
 
 [Peer]
-PublicKey = 5KC3jUkpMlnNZdP0wIts5i63X4HoA1qjsC3wJwiIzGg=
+PublicKey = /M5I2YBMTCbMNkIx1hSECkogN+JmW+cPf9aNWX+EGEs=
+Endpoint = place.holder.local.arpa:51820
 AllowedIPs = 10.0.0.2/32, fd00::2/128
 ```

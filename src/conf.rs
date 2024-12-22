@@ -10,7 +10,7 @@ pub fn create_single_config(meshs: &Meshs, self_tag: impl AsRef<str>) -> Result<
         .iter()
         .find(|mesh| mesh.tag.as_ref() == self_tag.as_ref())
         .unwrap();
-    writeln!(
+    write!(
         config,
         "\
 [Interface]
@@ -35,9 +35,10 @@ Address = {}/{}
             "
 [Peer]
 PublicKey = {}
+Endpoint = {}
 AllowedIPs = {}/32, {}/128
 ",
-            mesh.pubkey, mesh.ipv4, mesh.ipv6
+            mesh.pubkey, mesh.endpoint, mesh.ipv4, mesh.ipv6
         )?;
     }
     return Ok(config.into());

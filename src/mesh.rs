@@ -10,6 +10,7 @@ pub struct Mesh {
     pub prikey: Box<str>,
     pub ipv4: Box<str>,
     pub ipv6: Box<str>,
+    pub endpoint: Box<str>,
 }
 
 impl Mesh {
@@ -19,6 +20,7 @@ impl Mesh {
         prikey: impl Into<Box<str>>,
         ipv4: impl Into<Box<str>>,
         ipv6: impl Into<Box<str>>,
+        endpoint: impl Into<Box<str>>,
     ) -> Self {
         Mesh {
             tag: tag.into(),
@@ -26,6 +28,7 @@ impl Mesh {
             prikey: prikey.into(),
             ipv4: ipv4.into(),
             ipv6: ipv6.into(),
+            endpoint: endpoint.into(),
         }
     }
     pub fn to_json(&self) -> Box<str> {
