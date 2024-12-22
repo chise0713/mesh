@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Write};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::mesh::{self, Meshs};
 
@@ -16,11 +16,17 @@ pub fn create_single_config(meshs: &Meshs, self_tag: impl AsRef<str>) -> Result<
 [Interface]
 # PublicKey = {}
 PrivateKey = {}
+ListenPort = {}
 Address = {}/{}
 Address = {}/{}
 ",
         self_mesh.pubkey,
         self_mesh.prikey,
+        self_mesh
+            .endpoint
+            .split(':')
+            .last()
+            .context("No port found in endpoint.")?,
         self_mesh.ipv4,
         &meshs.ipv4_prefix,
         self_mesh.ipv6,
