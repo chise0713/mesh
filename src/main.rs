@@ -11,7 +11,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use clap::{CommandFactory, FromArgMatches as _};
 use cli::{Cli, Commands};
 use mesh::{
-    conf::create_all_config,
+    conf::Conf,
     mesh::{Mesh, Meshs},
 };
 use x25519_dalek::{PublicKey, StaticSecret};
@@ -71,7 +71,8 @@ fn main() -> Result<()> {
             } else if !output.exists() {
                 bail!("Output directory does not exist.")
             }
-            let config_map = create_all_config(args.config)?;
+            let mut config = Conf::default();
+            let config_map = config.create_all(args.config)?;
             for (tag, config) in config_map {
                 if tag.is_empty() {
                     continue;
