@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::{HashMap, HashSet},
     fmt::Write,
     net::{Ipv4Addr, Ipv6Addr},
@@ -10,40 +11,43 @@ use anyhow::{bail, format_err, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use x25519_dalek::{PublicKey, StaticSecret};
 
-use crate::mesh::{self, Mesh, Meshs};
+use crate::{
+    mesh::{self, Mesh, Meshs},
+    INTERNAL_CHECK_MESHS,
+};
 
 #[derive(Default, Debug)]
 pub struct Conf {
-    pub meshs: Rc<Meshs>,
-    verified: HashSet<Box<str>>,
+    pub meshs: Rc<RefCell<Meshs>>,
+    verified: HashSet<u16>,
 }
-
-const CHECK_MESHS: &str = "__INTERNAL_CHECK_MESHS__";
 
 impl Conf {
     pub fn create_single(&mut self, self_tag: impl AsRef<str>) -> Result<Box<str>> {
-        let mut config = String::new();
         let meshs = self.meshs.clone();
+        if self.verified.is_empty() {
+            let mut meshs = meshs.borrow_mut();
+            let mut current_id = 1;
+            meshs.iter_mut().for_each(|item| {
+                item.unique_id = current_id;
+                current_id += 1;
+            });
+        }
+        let meshs = meshs.borrow();
+        let mut config = String::new();
         let self_mesh = meshs
             .iter()
             .find(|mesh| mesh.tag.as_ref() == self_tag.as_ref())
             .unwrap()
             .clone();
-        if !self.verified.contains(&Box::from(CHECK_MESHS)) {
-            if meshs
-                .iter()
-                .enumerate()
-                .any(|(i, item)| meshs.iter().skip(i + 1).any(|other| other.tag == item.tag))
-            {
-                bail!("The tag should be unique.")
-            }
+        if !self.verified.contains(&INTERNAL_CHECK_MESHS) {
             if meshs.ipv4_prefix > 32 {
                 bail!("The ipv4_prefix should not be greater than 32.")
             }
             if meshs.ipv6_prefix > 128 {
                 bail!("The ipv6_prefix should not be greater than 128.")
             }
-            self.verified.insert(CHECK_MESHS.into());
+            self.verified.insert(INTERNAL_CHECK_MESHS);
         }
         write!(
             config,
@@ -84,8 +88,9 @@ AllowedIPs = {}/32, {}/128
 
     pub fn create_all(&mut self, path: impl AsRef<str>) -> Result<HashMap<Box<str>, Box<str>>> {
         let mut map = HashMap::new();
-        self.meshs = Rc::new(mesh::read_file(path)?);
-        let meshs = self.meshs.clone();
+        self.meshs = Rc::new(RefCell::new(mesh::read_file(path)?));
+        // unsafe block, but i think it's fine? but i can't find other way to do this, someone plz help
+        let meshs = unsafe { &*self.meshs.clone().as_ptr() };
         for mesh in meshs.iter() {
             let self_tag = &mesh.tag;
             map.insert(self_tag.clone(), self.create_single(self_tag)?);
@@ -94,13 +99,7 @@ AllowedIPs = {}/32, {}/128
     }
 
     fn verify(&mut self, mesh: &Mesh) -> Result<()> {
-        if mesh.tag.starts_with("__INTERNAL") {
-            bail!(
-                r#"[{}] Use "__INTERNAL" as prefix in tag is prohibited."#,
-                &mesh.tag
-            )
-        }
-        if self.verified.contains(&mesh.tag) {
+        if self.verified.contains(&mesh.unique_id) {
             return Ok(());
         }
         Ipv4Addr::from_str(&mesh.ipv4).map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?;
@@ -134,7 +133,7 @@ AllowedIPs = {}/32, {}/128
             mesh.endpoint.rfind(':')
         }
         .context(format!("[{}] The endpoint does not have a port.", mesh.tag))?;
-        self.verified.insert(mesh.tag.clone());
+        self.verified.insert(mesh.unique_id);
         Ok(())
     }
 }

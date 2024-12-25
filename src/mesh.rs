@@ -11,6 +11,8 @@ pub struct Mesh {
     pub ipv4: Box<str>,
     pub ipv6: Box<str>,
     pub endpoint: Box<str>,
+    #[serde(skip)]
+    pub(crate) unique_id: u16,
 }
 
 impl Mesh {
@@ -29,6 +31,7 @@ impl Mesh {
             ipv4: ipv4.into(),
             ipv6: ipv6.into(),
             endpoint: endpoint.into(),
+            unique_id: 0,
         }
     }
     pub fn to_json(&self) -> Box<str> {
@@ -62,6 +65,9 @@ impl Meshs {
     }
     pub fn iter(&self) -> impl Iterator<Item = &Mesh> {
         self.meshs.iter()
+    }
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Mesh> {
+        self.meshs.iter_mut()
     }
 }
 
