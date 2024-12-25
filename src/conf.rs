@@ -14,9 +14,11 @@ use crate::mesh::{self, Mesh, Meshs};
 
 #[derive(Default, Debug)]
 pub struct Conf {
-    meshs: Rc<Meshs>,
+    pub meshs: Rc<Meshs>,
     verified: HashSet<Box<str>>,
 }
+
+const CHECK_MESHS: &str = "__INTERNAL_CHECK_MESHS__";
 
 impl Conf {
     pub fn create_single(&mut self, self_tag: impl AsRef<str>) -> Result<Box<str>> {
@@ -24,9 +26,25 @@ impl Conf {
         let meshs = self.meshs.clone();
         let self_mesh = meshs
             .iter()
-            .find(|mesh| &*mesh.tag == self_tag.as_ref())
+            .find(|mesh| mesh.tag.as_ref() == self_tag.as_ref())
             .unwrap()
             .clone();
+        if !self.verified.contains(&Box::from(CHECK_MESHS)) {
+            if meshs
+                .iter()
+                .enumerate()
+                .any(|(i, item)| meshs.iter().skip(i + 1).any(|other| other.tag == item.tag))
+            {
+                bail!("The tag should be unique.")
+            }
+            if meshs.ipv4_prefix > 32 {
+                bail!("The ipv4_prefix should not be greater than 32.")
+            }
+            if meshs.ipv6_prefix > 128 {
+                bail!("The ipv6_prefix should not be greater than 128.")
+            }
+            self.verified.insert(CHECK_MESHS.into());
+        }
         write!(
             config,
             "\
@@ -68,12 +86,6 @@ AllowedIPs = {}/32, {}/128
         let mut map = HashMap::new();
         self.meshs = Rc::new(mesh::read_file(path)?);
         let meshs = self.meshs.clone();
-        if meshs.ipv4_prefix > 32 {
-            bail!("The ipv4_prefix should not be greater than 32.")
-        }
-        if meshs.ipv6_prefix > 128 {
-            bail!("The ipv6_prefix should not be greater than 128.")
-        }
         for mesh in meshs.iter() {
             let self_tag = &mesh.tag;
             map.insert(self_tag.clone(), self.create_single(self_tag)?);
@@ -82,6 +94,12 @@ AllowedIPs = {}/32, {}/128
     }
 
     fn verify(&mut self, mesh: &Mesh) -> Result<()> {
+        if mesh.tag.starts_with("__INTERNAL") {
+            bail!(
+                r#"[{}] Use "__INTERNAL" as prefix in tag is prohibited."#,
+                &mesh.tag
+            )
+        }
         if self.verified.contains(&mesh.tag) {
             return Ok(());
         }
