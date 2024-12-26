@@ -45,23 +45,26 @@ fn main() -> Result<()> {
             if count.is_none() {
                 writeln!(file, "{}", Meshs::new([Mesh::default()], 24, 64).to_json())?;
             } else {
+                let count = count.unwrap();
+                if count > 254 {
+                    bail!("Convert count should not be greater than 254.");
+                }
                 let mut meshs = Vec::new();
-                for mut i in 0..count.unwrap() {
-                    i += 1;
+                for i in 1..=count {
                     let secret = StaticSecret::random_from_rng(&mut rand::thread_rng());
                     let public = PublicKey::from(&secret);
                     let public = STANDARD.encode(public);
                     let secret = STANDARD.encode(secret);
                     meshs.push(Mesh::new(
-                        format!("{}", i),
+                        i.to_string(),
                         public,
                         secret,
                         format!("10.0.0.{}", i),
-                        format!("fd00::{}", i),
+                        format!("fd00::{:x}", i),
                         "place.holder.local.arpa:51820",
                     ));
                 }
-                write!(file, "{}", Meshs::new(meshs, 24, 64).to_json())?;
+                write!(file, "{}", Meshs::new(meshs, 24, 120).to_json())?;
             }
         }
         Commands::Convert { output } => {
