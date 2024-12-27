@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::{bail, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use cidr::{Ipv4Cidr, Ipv6Cidr};
 use clap::{CommandFactory, FromArgMatches as _};
 use cli::{Cli, Commands};
 use mesh::{
@@ -46,9 +47,12 @@ fn main() -> Result<()> {
                 writeln!(file, "{}", Meshs::new([Mesh::default()], 24, 64).to_json())?;
             } else {
                 let count = count.unwrap();
-                if count > 254 {
-                    bail!("Convert count should not be greater than 254.");
-                }
+                let ipv4_prefix = 32 - (count + 2).ilog2() as u8;
+                let ipv6_prefix = 128 - (count + 2).ilog2() as u8;
+                let mut ipv4 = Ipv4Cidr::new("10.0.0.0".parse()?, ipv4_prefix)?.iter();
+                let mut ipv6 = Ipv6Cidr::new("fd00::".parse()?, ipv6_prefix)?.iter();
+                ipv4.next().unwrap();
+                ipv6.next().unwrap();
                 let mut meshs = Vec::new();
                 for i in 1..=count {
                     let secret = StaticSecret::random_from_rng(&mut rand::thread_rng());
@@ -59,12 +63,16 @@ fn main() -> Result<()> {
                         i.to_string(),
                         public,
                         secret,
-                        format!("10.0.0.{}", i),
-                        format!("fd00::{:x}", i),
+                        ipv4.next().unwrap().address().to_string(),
+                        ipv6.next().unwrap().address().to_string(),
                         "place.holder.local.arpa:51820",
                     ));
                 }
-                write!(file, "{}", Meshs::new(meshs, 24, 120).to_json())?;
+                write!(
+                    file,
+                    "{}",
+                    Meshs::new(meshs, ipv4_prefix, ipv6_prefix).to_json()
+                )?;
             }
         }
         Commands::Convert { output } => {

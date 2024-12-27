@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{value_parser, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[clap(subcommand_required = true, arg_required_else_help = true)]
@@ -16,8 +16,8 @@ pub enum Commands {
     #[command(about = "Init a mesh config file")]
     Init {
         /// Number of mesh objects to initialize
-        #[arg(short, long)]
-        count: Option<u16>,
+        #[arg(short, long,value_parser = value_parser!(u32).range(0..=16_777_214))]
+        count: Option<u32>,
     },
 
     #[command(about = "Convert mesh config to wireguard config")]
