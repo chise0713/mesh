@@ -17,6 +17,9 @@ use mesh::{
 };
 use x25519_dalek::{PublicKey, StaticSecret};
 
+const IPV4_NETWORK_BROADCAST_OVERHEAD: u32 = 2;
+const RESERVED_IPV6_ADDRESS_COUNT: u32 = 1;
+
 fn main() -> Result<()> {
     let mut cmd = Cli::command();
     cmd.build();
@@ -47,8 +50,14 @@ fn main() -> Result<()> {
                 writeln!(file, "{}", Meshs::new([Mesh::default()], 24, 64).to_json())?;
             } else {
                 let count = count.unwrap();
-                let ipv4_prefix = 32 - (count + 2).ilog2() as u8;
-                let ipv6_prefix = 128 - (count + 2).ilog2() as u8;
+                let ipv4_prefix = (32
+                    - ((count + IPV4_NETWORK_BROADCAST_OVERHEAD) as f64)
+                        .log2()
+                        .ceil() as u8)
+                    .max(0);
+                let ipv6_prefix = (128
+                    - ((count + RESERVED_IPV6_ADDRESS_COUNT) as f64).log2().ceil() as u8)
+                    .max(0);
                 let mut ipv4 = Ipv4Cidr::new("10.0.0.0".parse()?, ipv4_prefix)?.iter();
                 let mut ipv6 = Ipv6Cidr::new("fd00::".parse()?, ipv6_prefix)?.iter();
                 ipv4.next().unwrap();
