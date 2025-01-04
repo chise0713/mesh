@@ -91,9 +91,22 @@ AllowedIPs = {}/32, {}/128
         self.meshs = Rc::new(RefCell::new(mesh::read_file(path)?));
         // unsafe block, but i think it's fine? but i can't find other way to do this, someone plz help
         let meshs = unsafe { &*self.meshs.clone().as_ptr() };
+        let mut tag_counts: HashMap<_, usize> = HashMap::new();
         for mesh in meshs.iter() {
+            *tag_counts.entry(mesh.tag.clone()).or_insert(0) += 1;
             let self_tag = &mesh.tag;
             map.insert(self_tag.clone(), self.create_single(self_tag)?);
+        }
+        let duplicates: Vec<_> = tag_counts.iter().filter(|(_, &count)| count > 1).collect();
+        if !duplicates.is_empty() {
+            const WARN: &str = "\x1b[0;33mWARNING\x1b[0m";
+            for (tag, _) in duplicates {
+                eprintln!("{}: Multiple meshes with the same tag: {:?}", WARN, tag);
+            }
+            eprintln!(
+                "{}: This will occur some overwrite, it should be avoid",
+                WARN
+            );
         }
         Ok(map)
     }
