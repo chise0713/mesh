@@ -93,11 +93,11 @@ AllowedIPs = {}/32, {}/128
         let meshs = unsafe { &*self.meshs.clone().as_ptr() };
         let mut tag_counts: HashMap<_, usize> = HashMap::new();
         for mesh in meshs.iter() {
-            *tag_counts.entry(mesh.tag.clone()).or_insert(0) += 1;
             let self_tag = &mesh.tag;
+            *tag_counts.entry(self_tag.clone()).or_insert(0) += 1;
             map.insert(self_tag.clone(), self.create_single(self_tag)?);
         }
-        let duplicates: Vec<_> = tag_counts.iter().filter(|(_, &count)| count > 1).collect();
+        let duplicates: Box<[_]> = tag_counts.iter().filter(|(_, &count)| count > 1).collect();
         if !duplicates.is_empty() {
             const WARN: &str = "\x1b[0;33mWARNING\x1b[0m";
             for (tag, _) in duplicates {
@@ -130,7 +130,7 @@ AllowedIPs = {}/32, {}/128
             bail!("[{}] The length of PublicKey does not equal 32.", mesh.tag);
         };
         let ppubkey = PublicKey::from(&StaticSecret::from(
-            TryInto::<[u8; 32]>::try_into(prikey.as_slice())
+            <[u8; 32]>::try_from(prikey.as_slice())
                 .map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?,
         ));
         if *ppubkey.as_bytes() != *pubkey {
