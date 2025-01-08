@@ -63,8 +63,9 @@ fn main() -> Result<()> {
                 ipv4.next().unwrap();
                 ipv6.next().unwrap();
                 let mut meshs = Vec::new();
+                let mut rng = rand::thread_rng();
                 for i in 1..=count {
-                    let secret = StaticSecret::random_from_rng(&mut rand::thread_rng());
+                    let secret = StaticSecret::random_from_rng(&mut rng);
                     let public = PublicKey::from(&secret);
                     let public = STANDARD.encode(public);
                     let secret = STANDARD.encode(secret);
@@ -93,8 +94,17 @@ fn main() -> Result<()> {
             }
             let mut config = Conf::default();
             let config_map = config.create_all(args.config)?;
+            let mut tag_warned = false;
             for (tag, config) in config_map {
                 if tag.is_empty() {
+                    if !tag_warned {
+                        const WARN: &str = "\x1b[0;33mWARNING\x1b[0m";
+                        eprintln!(
+                            "{}: One or more of the meshes has a empty tag, it will be ignored.",
+                            WARN
+                        );
+                        tag_warned = true
+                    }
                     continue;
                 }
                 let path = output.join(format!("{}.conf", tag));
