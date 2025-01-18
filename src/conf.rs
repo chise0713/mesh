@@ -159,9 +159,12 @@ AllowedIPs = {}/32, {}/128
             let i = mesh.endpoint.rfind(']').unwrap();
             mesh.endpoint[i..].rfind(':')
         } else {
+            if mesh.endpoint.contains('[') || mesh.endpoint.contains(']') {
+                bail!("[{}] Invalid endpoint address syntax", &mesh.tag)
+            }
             mesh.endpoint.rfind(':')
         }
-        .context(format!("[{}] The endpoint does not have a port", mesh.tag))?;
+        .context(format!("[{}] The endpoint does not have a port", &mesh.tag))?;
         Ok(())
     }
 }
