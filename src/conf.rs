@@ -42,10 +42,10 @@ impl Conf {
             .clone();
         if !self.verified.contains(&INTERNAL_CHECK_MESHS) {
             if meshs.ipv4_prefix > 32 {
-                bail!("The ipv4_prefix should not be greater than 32.")
+                bail!("The ipv4_prefix should not be greater than 32")
             }
             if meshs.ipv6_prefix > 128 {
-                bail!("The ipv6_prefix should not be greater than 128.")
+                bail!("The ipv6_prefix should not be greater than 128")
             }
             self.verified.insert(INTERNAL_CHECK_MESHS);
         }
@@ -89,13 +89,21 @@ AllowedIPs = {}/32, {}/128
     pub fn create_all(&mut self, path: impl AsRef<str>) -> Result<HashMap<Box<str>, Box<str>>> {
         let mut map = HashMap::new();
         self.meshs = Rc::new(RefCell::new(mesh::read_file(path)?));
-        // unsafe block, but i think it's fine? but i can't find other way to do this, someone plz help
+        // unsafe block, but i think it's fine? i can't find other way to do this, someone plz help
         let meshs = unsafe { &*self.meshs.clone().as_ptr() };
+        let mut errors = Vec::new();
         let mut tag_counts: HashMap<_, usize> = HashMap::new();
         for mesh in meshs.iter() {
             let self_tag = &mesh.tag;
             *tag_counts.entry(self_tag.clone()).or_insert(0) += 1;
-            map.insert(self_tag.clone(), self.create_single(self_tag)?);
+            match self.create_single(self_tag.clone()) {
+                Ok(config) => {
+                    map.insert(self_tag.clone(), config);
+                }
+                Err(e) => {
+                    errors.push(e);
+                }
+            };
         }
         let duplicates: Box<[_]> = tag_counts.iter().filter(|(_, &count)| count > 1).collect();
         if !duplicates.is_empty() {
@@ -108,12 +116,20 @@ AllowedIPs = {}/32, {}/128
                 WARN
             );
         }
+        if !errors.is_empty() {
+            for error in errors {
+                eprintln!("{}", error)
+            }
+            bail!("Error occurred");
+        }
         Ok(map)
     }
 
     fn verify(&mut self, mesh: &Mesh) -> Result<()> {
         if self.verified.contains(&mesh.unique_id) {
             return Ok(());
+        } else {
+            self.verified.insert(mesh.unique_id);
         }
         Ipv4Addr::from_str(&mesh.ipv4).map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?;
         Ipv6Addr::from_str(&mesh.ipv6).map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?;
@@ -121,13 +137,13 @@ AllowedIPs = {}/32, {}/128
             .decode(&*mesh.prikey)
             .map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?;
         if prikey.len() != 32 {
-            bail!("[{}] The length of PrivateKey does not equal 32.", mesh.tag);
+            bail!("[{}] The length of PrivateKey does not equal 32", mesh.tag);
         };
         let pubkey = STANDARD
             .decode(&*mesh.pubkey)
             .map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?;
         if pubkey.len() != 32 {
-            bail!("[{}] The length of PublicKey does not equal 32.", mesh.tag);
+            bail!("[{}] The length of PublicKey does not equal 32", mesh.tag);
         };
         let ppubkey = PublicKey::from(&StaticSecret::from(
             <[u8; 32]>::try_from(prikey.as_slice())
@@ -135,7 +151,7 @@ AllowedIPs = {}/32, {}/128
         ));
         if *ppubkey.as_bytes() != *pubkey {
             bail!(
-                "[{}] The PublicKey and PrivateKey do not form a pair.",
+                "[{}] The PublicKey and PrivateKey do not form a pair",
                 mesh.tag
             );
         }
@@ -145,8 +161,7 @@ AllowedIPs = {}/32, {}/128
         } else {
             mesh.endpoint.rfind(':')
         }
-        .context(format!("[{}] The endpoint does not have a port.", mesh.tag))?;
-        self.verified.insert(mesh.unique_id);
+        .context(format!("[{}] The endpoint does not have a port", mesh.tag))?;
         Ok(())
     }
 }

@@ -28,17 +28,17 @@ fn main() -> Result<()> {
         Commands::Init { count } => {
             let path = PathBuf::from(&*args.config);
             if path.exists() {
-                eprintln!("Config file already exsits.");
+                eprintln!("Config file already exsits");
                 eprint!("continue? [y/N]");
                 io::stdout().flush().unwrap();
                 let mut input = String::new();
                 io::stdin().read_line(&mut input).unwrap();
                 let input = input.trim();
                 if input.len() > 1 {
-                    bail!("Invalid input.")
+                    bail!("Invalid input")
                 }
                 if !input.to_ascii_lowercase().contains('y') {
-                    bail!("Aborted.")
+                    bail!("Aborted")
                 }
             }
             let mut file = OpenOptions::new()
@@ -62,7 +62,7 @@ fn main() -> Result<()> {
                 let mut ipv6 = Ipv6Cidr::new("fd00::".parse()?, ipv6_prefix)?.iter();
                 ipv4.next().unwrap();
                 ipv6.next().unwrap();
-                let mut meshs = Vec::new();
+                let mut meshs = Vec::with_capacity(count as usize);
                 let mut rng = rand::thread_rng();
                 for i in 1..=count {
                     let secret = StaticSecret::random_from_rng(&mut rng);
@@ -88,9 +88,9 @@ fn main() -> Result<()> {
         Commands::Convert { output } => {
             let output = PathBuf::from(&*output);
             if output.is_file() {
-                bail!("Output should not be file.")
+                bail!("Output should not be file")
             } else if !output.exists() {
-                bail!("Output directory does not exist.")
+                bail!("Output directory does not exist")
             }
             let mut config = Conf::default();
             let config_map = config.create_all(args.config)?;
@@ -100,7 +100,7 @@ fn main() -> Result<()> {
                     if !tag_warned {
                         const WARN: &str = "\x1b[0;33mWARNING\x1b[0m";
                         eprintln!(
-                            "{}: One or more of the meshes has a empty tag, it will be ignored.",
+                            "{}: One or more of the meshes has a empty tag, it will be ignored",
                             WARN
                         );
                         tag_warned = true
