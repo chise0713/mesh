@@ -1,12 +1,10 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::Write,
-    net::{Ipv4Addr, Ipv6Addr},
     rc::Rc,
-    str::FromStr,
 };
 
-use anyhow::{bail, format_err, Context, Result};
+use anyhow::{bail, format_err, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use x25519_dalek::{PublicKey, StaticSecret};
 
@@ -87,19 +85,11 @@ AllowedIPs = {}/32, {}/128
         let mut map = HashMap::new();
         self.meshs = Rc::new(mesh::read_file(path)?);
         let meshs = self.meshs.clone();
-        let mut errors = Vec::new();
         let mut tag_counts: HashMap<_, usize> = HashMap::new();
         for mesh in meshs.iter() {
             let self_tag = &mesh.tag;
             *tag_counts.entry(self_tag.clone()).or_insert(0) += 1;
-            match self.create_single(self_tag.clone()) {
-                Ok(config) => {
-                    map.insert(self_tag.clone(), config);
-                }
-                Err(e) => {
-                    errors.push(e);
-                }
-            };
+            map.insert(self_tag.clone(), self.create_single(self_tag)?);
         }
         let duplicates: Box<[_]> = tag_counts.iter().filter(|(_, &count)| count > 1).collect();
         if !duplicates.is_empty() {
@@ -112,12 +102,6 @@ AllowedIPs = {}/32, {}/128
                 WARN
             );
         }
-        if !errors.is_empty() {
-            for error in errors {
-                eprintln!("{}", error)
-            }
-            bail!("Error occurred");
-        }
         Ok(map)
     }
 
@@ -128,20 +112,12 @@ AllowedIPs = {}/32, {}/128
         } else {
             self.verified.insert(unique_id);
         }
-        Ipv4Addr::from_str(&mesh.ipv4).map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?;
-        Ipv6Addr::from_str(&mesh.ipv6).map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?;
         let prikey = STANDARD
             .decode(&*mesh.prikey)
             .map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?;
-        if prikey.len() != 32 {
-            bail!("[{}] The length of PrivateKey does not equal 32", mesh.tag);
-        };
         let pubkey = STANDARD
             .decode(&*mesh.pubkey)
             .map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?;
-        if pubkey.len() != 32 {
-            bail!("[{}] The length of PublicKey does not equal 32", mesh.tag);
-        };
         let ppubkey = PublicKey::from(&StaticSecret::from(
             <[u8; 32]>::try_from(prikey.as_slice())
                 .map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?,
@@ -152,16 +128,6 @@ AllowedIPs = {}/32, {}/128
                 mesh.tag
             );
         }
-        if mesh.endpoint.contains('[') && mesh.endpoint.contains(']') {
-            let i = mesh.endpoint.rfind(']').unwrap();
-            mesh.endpoint[i..].rfind(':')
-        } else {
-            if mesh.endpoint.contains('[') || mesh.endpoint.contains(']') {
-                bail!("[{}] Invalid endpoint address syntax", &mesh.tag)
-            }
-            mesh.endpoint.rfind(':')
-        }
-        .context(format!("[{}] The endpoint does not have a port", &mesh.tag))?;
         Ok(())
     }
 }

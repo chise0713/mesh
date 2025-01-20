@@ -1,16 +1,142 @@
-use std::{cell::RefCell, fs::File, io::Read};
+use std::{
+    cell::RefCell,
+    fmt,
+    fs::File,
+    io::Read,
+    net::{Ipv4Addr, Ipv6Addr},
+    ops::Deref,
+    str::FromStr,
+};
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+use serde::{de, Deserialize, Deserializer, Serialize};
+
+macro_rules! create_boxed_struct {
+    ($($struct_name:ident),+) => {
+        $(
+            #[derive(Serialize, Debug, Default, PartialEq, Eq, Clone)]
+            pub struct $struct_name(Box<str>);
+            impl Deref for $struct_name {
+                type Target = str;
+
+                fn deref(&self) -> &Self::Target {
+                    &self.0
+                }
+            }
+
+            impl fmt::Display for $struct_name {
+                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    write!(f, "{}", self.0)
+                }
+            }
+        )+
+    };
+}
+
+macro_rules! impl_ip_deserialize {
+    ($type:ty, $parse_fn:path) => {
+        impl<'de> Deserialize<'de> for $type {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                let s: Box<str> = Deserialize::deserialize(deserializer)?;
+                if $parse_fn(&s).is_ok() {
+                    Ok(Self(s))
+                } else {
+                    Err(de::Error::custom("Invalid IP address"))
+                }
+            }
+        }
+    };
+}
+
+macro_rules! impl_base64_deserialize {
+    ($($type:ty),+) => {
+        $(
+        impl<'de> Deserialize<'de> for $type {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                let s: Box<str> = Deserialize::deserialize(deserializer)?;
+                let bytes = STANDARD.decode(&*s).map_err(de::Error::custom)?;
+                if bytes.len() != 32 {
+                    return Err(de::Error::custom("Invalid length of decoded key"))
+                }
+                Ok(Self(s))
+            }
+        }
+        )+
+    };
+}
+
+create_boxed_struct!(
+    PublicKeyBoxStr,
+    PrivateKeyBoxStr,
+    Ipv4BoxStr,
+    Ipv6BoxStr,
+    EndpointBoxStr
+);
+
+#[derive(Debug)]
+pub enum EndpointParseError {
+    InvalidSyntax,
+    MissingPort,
+}
+
+impl fmt::Display for EndpointParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EndpointParseError::InvalidSyntax => {
+                write!(f, "Invalid endpoint address syntax")
+            }
+            EndpointParseError::MissingPort => {
+                write!(f, "Missing port in endpoint")
+            }
+        }
+    }
+}
+
+impl std::error::Error for EndpointParseError {}
+
+impl<'de> Deserialize<'de> for EndpointBoxStr {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: Box<str> = Deserialize::deserialize(deserializer)?;
+        let validate = || {
+            if s.contains('[') && s.contains(']') {
+                let i = s.rfind(']').unwrap();
+                if s[i..].rfind(':').is_none() {
+                    return Err(EndpointParseError::MissingPort);
+                }
+            } else if s.contains('[') || s.contains(']') {
+                return Err(EndpointParseError::InvalidSyntax);
+            } else if s.rfind(':').is_none() {
+                return Err(EndpointParseError::MissingPort);
+            }
+            Ok(())
+        };
+
+        validate().map_err(de::Error::custom)?;
+        Ok(EndpointBoxStr(s))
+    }
+}
+impl_base64_deserialize!(PublicKeyBoxStr, PrivateKeyBoxStr);
+impl_ip_deserialize!(Ipv4BoxStr, Ipv4Addr::from_str);
+impl_ip_deserialize!(Ipv6BoxStr, Ipv6Addr::from_str);
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Eq, Clone)]
 pub struct Mesh {
     pub tag: Box<str>,
-    pub pubkey: Box<str>,
-    pub prikey: Box<str>,
-    pub ipv4: Box<str>,
-    pub ipv6: Box<str>,
-    pub endpoint: Box<str>,
+    pub pubkey: PublicKeyBoxStr,
+    pub prikey: PrivateKeyBoxStr,
+    pub ipv4: Ipv4BoxStr,
+    pub ipv6: Ipv6BoxStr,
+    pub endpoint: EndpointBoxStr,
     #[serde(skip)]
     pub(crate) unique_id: RefCell<u16>,
 }
@@ -26,11 +152,11 @@ impl Mesh {
     ) -> Self {
         Mesh {
             tag: tag.into(),
-            pubkey: pubkey.into(),
-            prikey: prikey.into(),
-            ipv4: ipv4.into(),
-            ipv6: ipv6.into(),
-            endpoint: endpoint.into(),
+            pubkey: PublicKeyBoxStr(pubkey.into()),
+            prikey: PrivateKeyBoxStr(prikey.into()),
+            ipv4: Ipv4BoxStr(ipv4.into()),
+            ipv6: Ipv6BoxStr(ipv6.into()),
+            endpoint: EndpointBoxStr(endpoint.into()),
             unique_id: 0.into(),
         }
     }
