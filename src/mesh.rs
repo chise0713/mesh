@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read};
+use std::{cell::RefCell, fs::File, io::Read};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,7 @@ pub struct Mesh {
     pub ipv6: Box<str>,
     pub endpoint: Box<str>,
     #[serde(skip)]
-    pub(crate) unique_id: u16,
+    pub(crate) unique_id: RefCell<u16>,
 }
 
 impl Mesh {
@@ -31,7 +31,7 @@ impl Mesh {
             ipv4: ipv4.into(),
             ipv6: ipv6.into(),
             endpoint: endpoint.into(),
-            unique_id: 0,
+            unique_id: 0.into(),
         }
     }
     pub fn to_json(&self) -> Box<str> {

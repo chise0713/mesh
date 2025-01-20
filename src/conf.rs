@@ -1,5 +1,4 @@
 use std::{
-    cell::RefCell,
     collections::{HashMap, HashSet},
     fmt::Write,
     net::{Ipv4Addr, Ipv6Addr},
@@ -18,7 +17,7 @@ use crate::{
 
 #[derive(Default, Debug)]
 pub struct Conf {
-    pub meshs: Rc<RefCell<Meshs>>,
+    pub meshs: Rc<Meshs>,
     verified: HashSet<u16>,
 }
 
@@ -26,14 +25,12 @@ impl Conf {
     pub fn create_single(&mut self, self_tag: impl AsRef<str>) -> Result<Box<str>> {
         let meshs = self.meshs.clone();
         if self.verified.is_empty() {
-            let mut meshs = meshs.borrow_mut();
             let mut current_id = 1;
-            meshs.iter_mut().for_each(|item| {
-                item.unique_id = current_id;
+            meshs.iter().for_each(|item| {
+                *item.unique_id.borrow_mut() = current_id;
                 current_id += 1;
             });
         }
-        let meshs = meshs.borrow();
         let mut config = String::new();
         let self_mesh = meshs
             .iter()
@@ -88,9 +85,8 @@ AllowedIPs = {}/32, {}/128
 
     pub fn create_all(&mut self, path: impl AsRef<str>) -> Result<HashMap<Box<str>, Box<str>>> {
         let mut map = HashMap::new();
-        self.meshs = Rc::new(RefCell::new(mesh::read_file(path)?));
-        // unsafe block, but i think it's fine? i can't find other way to do this, someone plz help
-        let meshs = unsafe { &*self.meshs.clone().as_ptr() };
+        self.meshs = Rc::new(mesh::read_file(path)?);
+        let meshs = self.meshs.clone();
         let mut errors = Vec::new();
         let mut tag_counts: HashMap<_, usize> = HashMap::new();
         for mesh in meshs.iter() {
@@ -126,10 +122,11 @@ AllowedIPs = {}/32, {}/128
     }
 
     fn verify(&mut self, mesh: &Mesh) -> Result<()> {
-        if self.verified.contains(&mesh.unique_id) {
+        let unique_id = *mesh.unique_id.borrow();
+        if self.verified.contains(&unique_id) {
             return Ok(());
         } else {
-            self.verified.insert(mesh.unique_id);
+            self.verified.insert(unique_id);
         }
         Ipv4Addr::from_str(&mesh.ipv4).map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?;
         Ipv6Addr::from_str(&mesh.ipv6).map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?;
