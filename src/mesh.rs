@@ -46,11 +46,8 @@ macro_rules! impl_ip_deserialize {
                 D: Deserializer<'de>,
             {
                 let s: Box<str> = Deserialize::deserialize(deserializer)?;
-                if $parse_fn(&s).is_ok() {
-                    Ok(Self(s))
-                } else {
-                    Err(de::Error::custom("Invalid IP address"))
-                }
+                $parse_fn(&s).map_err(de::Error::custom)?;
+                Ok(Self(s))
             }
         }
     };
