@@ -4,7 +4,7 @@ use std::{
     fs::File,
     io::Read,
     net::{Ipv4Addr, Ipv6Addr},
-    ops::Deref,
+    ops::{Deref, DerefMut},
     str::FromStr,
 };
 
@@ -24,7 +24,11 @@ macro_rules! create_boxed_struct {
                     &self.0
                 }
             }
-
+            impl DerefMut for $struct_name {
+                fn deref_mut(&mut self) -> &mut Self::Target {
+                    &mut self.0
+                }
+            }
             impl fmt::Display for $struct_name {
                 fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                     write!(f, "{}", self.0)
