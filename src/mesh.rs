@@ -80,26 +80,14 @@ create_boxed_struct!(
     EndpointBoxStr
 );
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum EndpointParseError {
+    #[error("Invalid endpoint address syntax")]
     InvalidSyntax,
+
+    #[error("Missing port in endpoint")]
     MissingPort,
 }
-
-impl fmt::Display for EndpointParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            EndpointParseError::InvalidSyntax => {
-                write!(f, "Invalid endpoint address syntax")
-            }
-            EndpointParseError::MissingPort => {
-                write!(f, "Missing port in endpoint")
-            }
-        }
-    }
-}
-
-impl std::error::Error for EndpointParseError {}
 
 impl<'de> Deserialize<'de> for EndpointBoxStr {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

@@ -12,3 +12,4 @@ x25519-dalek = { version = "2.0.1", features = ["static_secrets"] }
 rand = "0.8.5"
 base64 = "0.22.1"
 cidr = "0.3.0"
+thiserror = "2.0.11"
