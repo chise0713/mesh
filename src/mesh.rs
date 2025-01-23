@@ -1,5 +1,4 @@
 use std::{
-    cell::RefCell,
     fmt,
     fs::File,
     io::Read,
@@ -10,7 +9,11 @@ use std::{
 
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{
+    de::{self, MapAccess, Visitor},
+    Deserialize, Deserializer, Serialize,
+};
+use x25519_dalek::{PublicKey, StaticSecret};
 
 macro_rules! create_boxed_struct {
     ($($struct_name:ident),+) => {
@@ -53,33 +56,79 @@ macro_rules! impl_ip_deserialize {
     };
 }
 
-macro_rules! impl_base64_deserialize {
-    ($($type:ty),+) => {
-        $(
-        impl<'de> Deserialize<'de> for $type {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: Deserializer<'de>,
-            {
-                let s: Box<str> = Deserialize::deserialize(deserializer)?;
-                let bytes = STANDARD.decode(&*s).map_err(de::Error::custom)?;
-                if bytes.len() != 32 {
-                    return Err(de::Error::custom("Invalid length of decoded key"))
-                }
-                Ok(Self(s))
-            }
-        }
-        )+
-    };
+create_boxed_struct!(Ipv4BoxStr, Ipv6BoxStr, EndpointBoxStr);
+
+#[derive(Serialize, Debug, Default, PartialEq, Eq, Clone)]
+pub struct KeyPair {
+    pub pubkey: Box<str>,
+    pub prikey: Box<str>,
 }
 
-create_boxed_struct!(
-    PublicKeyBoxStr,
-    PrivateKeyBoxStr,
-    Ipv4BoxStr,
-    Ipv6BoxStr,
-    EndpointBoxStr
-);
+impl<'de> Deserialize<'de> for KeyPair {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        const FIELD_PUBKEY: &str = "pubkey";
+        const FIELD_PRIKEY: &str = "prikey";
+        struct KeyPairVisitor;
+        impl<'de> Visitor<'de> for KeyPairVisitor {
+            type Value = KeyPair;
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a map with pubkey and prikey fields")
+            }
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut pubkey_str: Option<&str> = None;
+                let mut prikey_str: Option<&str> = None;
+                while let Some(key) = map.next_key::<&str>()? {
+                    match key.as_ref() {
+                        FIELD_PUBKEY => {
+                            if pubkey_str.is_some() {
+                                return Err(de::Error::duplicate_field(FIELD_PUBKEY));
+                            }
+                            pubkey_str = Some(map.next_value()?);
+                        }
+                        FIELD_PRIKEY => {
+                            if prikey_str.is_some() {
+                                return Err(de::Error::duplicate_field(FIELD_PRIKEY));
+                            }
+                            prikey_str = Some(map.next_value()?);
+                        }
+                        _ => {
+                            let _: de::IgnoredAny = map.next_value()?;
+                        }
+                    }
+                }
+                let pubkey_str =
+                    pubkey_str.ok_or_else(|| de::Error::missing_field(FIELD_PUBKEY))?;
+                let prikey_str =
+                    prikey_str.ok_or_else(|| de::Error::missing_field(FIELD_PRIKEY))?;
+                let prikey = STANDARD
+                    .decode(&*prikey_str)
+                    .map_err(|e| de::Error::custom(format!("Failed to decode prikey: {}", e)))?;
+
+                let pubkey = STANDARD
+                    .decode(&*pubkey_str)
+                    .map_err(|e| de::Error::custom(format!("Failed to decode pubkey: {}", e)))?;
+
+                let ppubkey = PublicKey::from(&StaticSecret::from(
+                    <[u8; 32]>::try_from(prikey.as_slice()).map_err(de::Error::custom)?,
+                ));
+                if *ppubkey.as_bytes() != *pubkey {
+                    return Err(de::Error::custom("Key pair mismatch"));
+                }
+                Ok(KeyPair {
+                    pubkey: pubkey_str.into(),
+                    prikey: prikey_str.into(),
+                })
+            }
+        }
+        deserializer.deserialize_map(KeyPairVisitor)
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum EndpointParseError {
@@ -114,20 +163,17 @@ impl<'de> Deserialize<'de> for EndpointBoxStr {
         Ok(EndpointBoxStr(s))
     }
 }
-impl_base64_deserialize!(PublicKeyBoxStr, PrivateKeyBoxStr);
 impl_ip_deserialize!(Ipv4BoxStr, Ipv4Addr::from_str);
 impl_ip_deserialize!(Ipv6BoxStr, Ipv6Addr::from_str);
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Eq, Clone)]
 pub struct Mesh {
     pub tag: Box<str>,
-    pub pubkey: PublicKeyBoxStr,
-    pub prikey: PrivateKeyBoxStr,
+    #[serde(flatten)]
+    pub key_pair: KeyPair,
     pub ipv4: Ipv4BoxStr,
     pub ipv6: Ipv6BoxStr,
     pub endpoint: EndpointBoxStr,
-    #[serde(skip)]
-    pub(crate) unique_id: RefCell<u16>,
 }
 
 impl Mesh {
@@ -141,12 +187,13 @@ impl Mesh {
     ) -> Self {
         Mesh {
             tag: tag.into(),
-            pubkey: PublicKeyBoxStr(pubkey.into()),
-            prikey: PrivateKeyBoxStr(prikey.into()),
+            key_pair: KeyPair {
+                pubkey: pubkey.into(),
+                prikey: prikey.into(),
+            },
             ipv4: Ipv4BoxStr(ipv4.into()),
             ipv6: Ipv6BoxStr(ipv6.into()),
             endpoint: EndpointBoxStr(endpoint.into()),
-            unique_id: 0.into(),
         }
     }
     pub fn to_json(&self) -> Box<str> {
@@ -157,10 +204,27 @@ impl Mesh {
     }
 }
 
+fn deserialize_with_max<'de, const MAX: u8, D>(deserializer: D) -> Result<u8, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = u8::deserialize(deserializer)?;
+    if value > MAX {
+        Err(de::Error::custom(format!(
+            "Invalid value: {} (maximum {})",
+            value, MAX
+        )))
+    } else {
+        Ok(value)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Eq, Clone)]
 pub struct Meshs {
     pub meshs: Box<[Mesh]>,
+    #[serde(deserialize_with = "deserialize_with_max::<32, _>")]
     pub ipv4_prefix: u8,
+    #[serde(deserialize_with = "deserialize_with_max::<128, _>")]
     pub ipv6_prefix: u8,
 }
 

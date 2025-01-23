@@ -1,49 +1,23 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::Write,
-    rc::Rc,
-};
+use std::{collections::HashMap, fmt::Write, rc::Rc};
 
-use anyhow::{bail, format_err, Result};
-use base64::{engine::general_purpose::STANDARD, Engine as _};
-use x25519_dalek::{PublicKey, StaticSecret};
+use anyhow::Result;
 
-use crate::{
-    mesh::{self, Mesh, Meshs},
-    INTERNAL_CHECK_MESHS,
-};
+use crate::mesh::{self, Meshs};
 
 #[derive(Default, Debug)]
 pub struct Conf {
     pub meshs: Rc<Meshs>,
-    verified: HashSet<u16>,
 }
 
 impl Conf {
     pub fn create_single(&mut self, self_tag: impl AsRef<str>) -> Result<Box<str>> {
         let meshs = self.meshs.clone();
-        if self.verified.is_empty() {
-            let mut current_id = 1;
-            meshs.iter().for_each(|item| {
-                *item.unique_id.borrow_mut() = current_id;
-                current_id += 1;
-            });
-        }
         let mut config = String::new();
         let self_mesh = meshs
             .iter()
             .find(|mesh| mesh.tag.as_ref() == self_tag.as_ref())
             .unwrap()
             .clone();
-        if !self.verified.contains(&INTERNAL_CHECK_MESHS) {
-            if meshs.ipv4_prefix > 32 {
-                bail!("The ipv4_prefix should not be greater than 32")
-            }
-            if meshs.ipv6_prefix > 128 {
-                bail!("The ipv6_prefix should not be greater than 128")
-            }
-            self.verified.insert(INTERNAL_CHECK_MESHS);
-        }
         write!(
             config,
             "\
@@ -54,8 +28,8 @@ ListenPort = {}
 Address = {}/{}
 Address = {}/{}
 ",
-            self_mesh.pubkey,
-            self_mesh.prikey,
+            self_mesh.key_pair.pubkey,
+            self_mesh.key_pair.prikey,
             self_mesh.endpoint.split(':').last().unwrap(),
             self_mesh.ipv4,
             &meshs.ipv4_prefix,
@@ -63,7 +37,6 @@ Address = {}/{}
             &meshs.ipv6_prefix
         )?;
         for mesh in meshs.iter() {
-            self.verify(&mesh)?;
             if *mesh == self_mesh {
                 continue;
             }
@@ -75,7 +48,7 @@ PublicKey = {}
 Endpoint = {}
 AllowedIPs = {}/32, {}/128
 ",
-                mesh.pubkey, mesh.endpoint, mesh.ipv4, mesh.ipv6
+                mesh.key_pair.pubkey, mesh.endpoint, mesh.ipv4, mesh.ipv6
             )?;
         }
         return Ok(config.into());
@@ -103,31 +76,5 @@ AllowedIPs = {}/32, {}/128
             );
         }
         Ok(map)
-    }
-
-    fn verify(&mut self, mesh: &Mesh) -> Result<()> {
-        let unique_id = *mesh.unique_id.borrow();
-        if self.verified.contains(&unique_id) {
-            return Ok(());
-        } else {
-            self.verified.insert(unique_id);
-        }
-        let prikey = STANDARD
-            .decode(&*mesh.prikey)
-            .map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?;
-        let pubkey = STANDARD
-            .decode(&*mesh.pubkey)
-            .map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?;
-        let ppubkey = PublicKey::from(&StaticSecret::from(
-            <[u8; 32]>::try_from(prikey.as_slice())
-                .map_err(|e| format_err!("[{}] {}", &mesh.tag, e))?,
-        ));
-        if *ppubkey.as_bytes() != *pubkey {
-            bail!(
-                "[{}] The PublicKey and PrivateKey do not form a pair",
-                mesh.tag
-            );
-        }
-        Ok(())
     }
 }
