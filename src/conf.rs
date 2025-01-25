@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Write, rc::Rc};
 
 use anyhow::Result;
 
-use crate::mesh::{self, Meshs};
+use crate::mesh::{self, Mesh, Meshs};
 
 #[derive(Default, Debug)]
 pub struct Conf {
@@ -10,14 +10,9 @@ pub struct Conf {
 }
 
 impl Conf {
-    pub fn create_single(&mut self, self_tag: impl AsRef<str>) -> Result<Box<str>> {
+    pub fn create_single(&mut self, self_mesh: &Mesh) -> Result<Box<str>> {
         let meshs = self.meshs.clone();
         let mut config = String::new();
-        let self_mesh = meshs
-            .iter()
-            .find(|mesh| mesh.tag.as_ref() == self_tag.as_ref())
-            .unwrap()
-            .clone();
         write!(
             config,
             "\
@@ -37,7 +32,7 @@ Address = {}/{}
             &meshs.ipv6_prefix
         )?;
         for mesh in meshs.iter() {
-            if *mesh == self_mesh {
+            if mesh == self_mesh {
                 continue;
             }
             write!(
@@ -61,8 +56,8 @@ AllowedIPs = {}/32, {}/128
         let mut tag_counts: HashMap<_, usize> = HashMap::new();
         for mesh in meshs.iter() {
             let self_tag = &mesh.tag;
-            *tag_counts.entry(self_tag.clone()).or_insert(0) += 1;
-            map.insert(self_tag.clone(), self.create_single(self_tag)?);
+            *tag_counts.entry(self_tag).or_insert(0) += 1;
+            map.insert(self_tag.clone(), self.create_single(mesh)?);
         }
         let duplicates: Box<[_]> = tag_counts.iter().filter(|(_, &count)| count > 1).collect();
         if !duplicates.is_empty() {
