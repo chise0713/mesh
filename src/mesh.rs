@@ -7,7 +7,7 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::{format_err, Result};
+use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{
     de::{self, MapAccess, Visitor},
@@ -60,7 +60,7 @@ pub trait ToJson {
 }
 
 pub trait FromJson {
-    fn from_json(v: impl AsRef<str>) -> Result<Self>
+    fn from_json(v: impl AsRef<str>) -> Result<Self, serde_json::Error>
     where
         Self: Sized;
 }
@@ -74,8 +74,8 @@ macro_rules! impl_json {
                 }
             }
             impl FromJson for $type {
-                fn from_json(v: impl AsRef<str>) -> Result<Self> {
-                    serde_json::from_str(v.as_ref()).map_err(|e| format_err!("{e}"))
+                fn from_json(v: impl AsRef<str>) -> Result<Self,serde_json::Error> {
+                    serde_json::from_str(v.as_ref())
                 }
             }
         )+
