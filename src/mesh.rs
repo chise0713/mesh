@@ -7,7 +7,7 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::Result;
+use anyhow::{format_err, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{
     de::{self, MapAccess, Visitor},
@@ -22,7 +22,6 @@ macro_rules! create_boxed_struct {
             pub struct $struct_name(Box<str>);
             impl Deref for $struct_name {
                 type Target = str;
-
                 fn deref(&self) -> &Self::Target {
                     &self.0
                 }
@@ -53,6 +52,33 @@ macro_rules! impl_ip_deserialize {
                 Ok(Self(s))
             }
         }
+    };
+}
+
+pub trait ToJson {
+    fn to_json(&self) -> Result<Box<str>, serde_json::Error>;
+}
+
+pub trait FromJson {
+    fn from_json(v: impl AsRef<str>) -> Result<Self>
+    where
+        Self: Sized;
+}
+
+macro_rules! impl_json {
+    ($($type:ident),+) => {
+        $(
+            impl ToJson for $type {
+            fn to_json(&self) -> Result<Box<str>, serde_json::Error> {
+                    serde_json::to_string_pretty(self).map(|s| s.into_boxed_str())
+                }
+            }
+            impl FromJson for $type {
+                fn from_json(v: impl AsRef<str>) -> Result<Self> {
+                    serde_json::from_str(v.as_ref()).map_err(|e| format_err!("{e}"))
+                }
+            }
+        )+
     };
 }
 
@@ -196,12 +222,6 @@ impl Mesh {
             endpoint: EndpointBoxStr(endpoint.into()),
         }
     }
-    pub fn to_json(&self) -> Box<str> {
-        serde_json::to_string_pretty(self).unwrap().into_boxed_str()
-    }
-    pub fn from_json(v: impl AsRef<str>) -> Self {
-        serde_json::from_str(v.as_ref()).unwrap()
-    }
 }
 
 fn deserialize_with_max<'de, const MAX: u8, D>(deserializer: D) -> Result<u8, D::Error>
@@ -236,12 +256,6 @@ impl Meshs {
             ipv6_prefix,
         }
     }
-    pub fn to_json(&self) -> Box<str> {
-        serde_json::to_string_pretty(self).unwrap().into_boxed_str()
-    }
-    pub fn from_json(v: impl AsRef<str>) -> Self {
-        serde_json::from_str(v.as_ref()).unwrap()
-    }
     pub fn iter(&self) -> impl Iterator<Item = &Mesh> {
         self.meshs.iter()
     }
@@ -249,6 +263,8 @@ impl Meshs {
         self.meshs.iter_mut()
     }
 }
+
+impl_json!(Mesh, Meshs);
 
 impl IntoIterator for Meshs {
     type Item = Mesh;
@@ -258,10 +274,10 @@ impl IntoIterator for Meshs {
     }
 }
 
-pub fn read_file<T: for<'de> Deserialize<'de>>(path: impl AsRef<str>) -> Result<T> {
+pub fn read_file<T: FromJson>(path: impl AsRef<str>) -> Result<T> {
     let mut file = File::open(path.as_ref())?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
-    let data: T = serde_json::from_str(&contents)?;
+    let data = T::from_json(&contents)?;
     Ok(data)
 }

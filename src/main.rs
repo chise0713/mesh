@@ -13,7 +13,7 @@ use clap::{CommandFactory, FromArgMatches as _};
 use cli::{Cli, Commands};
 use mesh::{
     conf::Conf,
-    mesh::{Mesh, Meshs},
+    mesh::{Mesh, Meshs, ToJson as _},
 };
 use x25519_dalek::{PublicKey, StaticSecret};
 
@@ -30,8 +30,7 @@ fn main() -> Result<()> {
             if path.exists() {
                 eprintln!("Config file already exsits");
                 eprint!("continue? [y/N]");
-                io::stdout().flush().unwrap();
-                let mut input = String::new();
+                let mut input = String::with_capacity(2);
                 io::stdin().read_line(&mut input).unwrap();
                 let input = input.trim();
                 if input.len() > 1 {
@@ -47,7 +46,11 @@ fn main() -> Result<()> {
                 .open(&*args.config)?;
             file.set_len(0)?;
             if count.is_none() {
-                writeln!(file, "{}", Meshs::new([Mesh::default()], 24, 64).to_json())?;
+                writeln!(
+                    file,
+                    "{}",
+                    Meshs::new([Mesh::default()], 24, 120).to_json()?
+                )?;
             } else {
                 let count = count.unwrap();
                 let ipv4_prefix = (32
@@ -81,7 +84,7 @@ fn main() -> Result<()> {
                 write!(
                     file,
                     "{}",
-                    Meshs::new(meshs, ipv4_prefix, ipv6_prefix).to_json()
+                    Meshs::new(meshs, ipv4_prefix, ipv6_prefix).to_json()?
                 )?;
             }
         }
