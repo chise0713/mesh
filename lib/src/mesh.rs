@@ -16,7 +16,7 @@ macro_rules! create_boxed_struct {
     ($($struct_name:ident),+) => {
         $(
             #[derive(Serialize, Debug, Default, PartialEq, Eq, Clone)]
-            pub struct $struct_name(Box<str>);
+            pub struct $struct_name(pub Box<str>);
             impl Deref for $struct_name {
                 type Target = str;
                 fn deref(&self) -> &Self::Target {
