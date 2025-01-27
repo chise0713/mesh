@@ -1,13 +1,10 @@
 use std::{
     fmt,
-    fs::File,
-    io::Read,
     net::{Ipv4Addr, Ipv6Addr},
     ops::{Deref, DerefMut},
     str::FromStr,
 };
 
-use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{
     de::{self, MapAccess, Visitor},
@@ -55,14 +52,12 @@ macro_rules! impl_ip_deserialize {
     };
 }
 
-pub trait ToJson {
+pub trait ToJson: Serialize {
     fn to_json(&self) -> Result<Box<str>, serde_json::Error>;
 }
 
-pub trait FromJson {
-    fn from_json(v: impl AsRef<str>) -> Result<Self, serde_json::Error>
-    where
-        Self: Sized;
+pub trait FromJson: Sized + Deserialize<'static> {
+    fn from_json(v: impl AsRef<str>) -> Result<Self, serde_json::Error>;
 }
 
 macro_rules! impl_json {
@@ -74,7 +69,7 @@ macro_rules! impl_json {
                 }
             }
             impl FromJson for $type {
-                fn from_json(v: impl AsRef<str>) -> Result<Self,serde_json::Error> {
+                fn from_json(v: impl AsRef<str>) -> Result<Self, serde_json::Error> {
                     serde_json::from_str(v.as_ref())
                 }
             }
@@ -109,6 +104,7 @@ impl<'de> Deserialize<'de> for KeyPair {
             {
                 let mut pubkey_str: Option<&str> = None;
                 let mut prikey_str: Option<&str> = None;
+
                 while let Some(key) = map.next_key::<&str>()? {
                     match key.as_ref() {
                         FIELD_PUBKEY => {
@@ -128,6 +124,7 @@ impl<'de> Deserialize<'de> for KeyPair {
                         }
                     }
                 }
+
                 let pubkey_str =
                     pubkey_str.ok_or_else(|| de::Error::missing_field(FIELD_PUBKEY))?;
                 let prikey_str =
@@ -135,17 +132,16 @@ impl<'de> Deserialize<'de> for KeyPair {
                 let prikey = STANDARD
                     .decode(&*prikey_str)
                     .map_err(|e| de::Error::custom(format!("Failed to decode prikey: {}", e)))?;
-
                 let pubkey = STANDARD
                     .decode(&*pubkey_str)
                     .map_err(|e| de::Error::custom(format!("Failed to decode pubkey: {}", e)))?;
-
                 let ppubkey = PublicKey::from(&StaticSecret::from(
                     <[u8; 32]>::try_from(prikey.as_slice()).map_err(de::Error::custom)?,
                 ));
                 if *ppubkey.as_bytes() != *pubkey {
                     return Err(de::Error::custom("Key pair mismatch"));
                 }
+
                 Ok(KeyPair {
                     pubkey: pubkey_str.into(),
                     prikey: prikey_str.into(),
@@ -171,6 +167,7 @@ impl<'de> Deserialize<'de> for EndpointBoxStr {
         D: Deserializer<'de>,
     {
         let s: Box<str> = Deserialize::deserialize(deserializer)?;
+
         let validate = || {
             if s.contains('[') && s.contains(']') {
                 let i = s.rfind(']').unwrap();
@@ -189,6 +186,7 @@ impl<'de> Deserialize<'de> for EndpointBoxStr {
         Ok(EndpointBoxStr(s))
     }
 }
+
 impl_ip_deserialize!(Ipv4BoxStr, Ipv4Addr::from_str);
 impl_ip_deserialize!(Ipv6BoxStr, Ipv6Addr::from_str);
 
@@ -272,12 +270,4 @@ impl IntoIterator for Meshs {
     fn into_iter(self) -> Self::IntoIter {
         self.meshs.to_vec().into_iter()
     }
-}
-
-pub fn read_file<T: FromJson>(path: impl AsRef<str>) -> Result<T> {
-    let mut file = File::open(path.as_ref())?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-    let data = T::from_json(&contents)?;
-    Ok(data)
 }

@@ -1,8 +1,18 @@
-use std::{collections::HashMap, fmt::Write, rc::Rc};
+use std::{
+    collections::HashMap,
+    fmt::{self, Write},
+    rc::Rc,
+};
 
-use anyhow::Result;
+use crate::mesh::{Mesh, Meshs};
 
-use crate::mesh::{self, Mesh, Meshs};
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("{0}")]
+    FmtError(#[from] fmt::Error),
+    #[error("{0}")]
+    SerdeJsonError(#[from] serde_json::Error),
+}
 
 #[derive(Default, Debug)]
 pub struct Conf {
@@ -10,7 +20,7 @@ pub struct Conf {
 }
 
 impl Conf {
-    pub fn create_single(&mut self, self_mesh: &Mesh) -> Result<Box<str>> {
+    pub fn create_single(&mut self, self_mesh: &Mesh) -> Result<Box<str>, Error> {
         let meshs = self.meshs.clone();
         let mut config = String::new();
         write!(
@@ -27,9 +37,9 @@ Address = {}/{}
             self_mesh.key_pair.prikey,
             self_mesh.endpoint.split(':').last().unwrap(),
             self_mesh.ipv4,
-            &meshs.ipv4_prefix,
+            meshs.ipv4_prefix,
             self_mesh.ipv6,
-            &meshs.ipv6_prefix
+            meshs.ipv6_prefix
         )?;
         for mesh in meshs.iter() {
             if mesh == self_mesh {
@@ -49,9 +59,9 @@ AllowedIPs = {}/32, {}/128
         return Ok(config.into());
     }
 
-    pub fn create_all(&mut self, path: impl AsRef<str>) -> Result<HashMap<Box<str>, Box<str>>> {
+    pub fn create_all(&mut self, meshs: Meshs) -> Result<HashMap<Box<str>, Box<str>>, Error> {
         let mut map = HashMap::new();
-        self.meshs = Rc::new(mesh::read_file(path)?);
+        self.meshs = Rc::new(meshs);
         let meshs = self.meshs.clone();
         let mut tag_counts: HashMap<_, usize> = HashMap::new();
         for mesh in meshs.iter() {

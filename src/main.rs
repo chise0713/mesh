@@ -1,8 +1,8 @@
 mod cli;
 
 use std::{
-    fs::OpenOptions,
-    io::{self, Write},
+    fs::{File, OpenOptions},
+    io::{self, Read, Write},
     path::PathBuf,
 };
 
@@ -11,9 +11,9 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use cidr::{Ipv4Cidr, Ipv6Cidr};
 use clap::{CommandFactory, FromArgMatches as _};
 use cli::{Cli, Commands};
-use mesh::{
+use meshes::{
     conf::Conf,
-    mesh::{Mesh, Meshs, ToJson as _},
+    mesh::{FromJson as _, Mesh, Meshs, ToJson as _},
 };
 use x25519_dalek::{PublicKey, StaticSecret};
 
@@ -95,8 +95,9 @@ fn main() -> Result<()> {
             } else if !output.exists() {
                 bail!("Output directory does not exist")
             }
-            let mut config = Conf::default();
-            let config_map = config.create_all(args.config)?;
+            let mut buf = String::with_capacity(4096);
+            File::open(&*args.config)?.read_to_string(&mut buf)?;
+            let config_map = Conf::default().create_all(Meshs::from_json(buf)?)?;
             let mut tag_warned = false;
             for (tag, config) in config_map {
                 if tag.is_empty() {
