@@ -1,6 +1,8 @@
 #![cfg(test)]
 
-use crate::mesh::{EndpointBoxStr, FromJson, Ipv4BoxStr, Ipv6BoxStr, Mesh, Meshs, ToJson as _};
+use crate::mesh::{
+    EndpointBoxStr, FromJson as _, Ipv4BoxStr, Ipv6BoxStr, Mesh, Meshs, ToJson as _,
+};
 
 #[test]
 fn test_eq() {
@@ -17,6 +19,7 @@ fn test_eq() {
     let meshs_de = Meshs::from_json(json).unwrap();
     assert_eq!(meshs_orig, meshs_de);
 }
+
 #[test]
 fn test_de() {
     let mut mesh = Mesh::new(
