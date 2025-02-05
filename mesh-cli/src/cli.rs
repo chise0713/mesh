@@ -26,4 +26,17 @@ pub enum Commands {
         #[arg(short, long)]
         output: Box<str>,
     },
+
+    #[command(about = "Append a `mesh` to the config")]
+    Append {
+        /// The tag of appending `mesh`
+        #[arg(short, long)]
+        tag: Box<str>,
+        /// Number of appending `meshes`
+        #[arg(short, long,value_parser = value_parser!(u32).range(0..=16_777_214))]
+        count: Option<u32>,
+        /// Turn on edit in-place mode
+        #[arg(short, long)]
+        in_place: bool,
+    },
 }

@@ -3,7 +3,9 @@ mod cli;
 use std::{
     fs::{File, OpenOptions},
     io::{self, Read, Write},
+    net::{Ipv4Addr, Ipv6Addr},
     path::PathBuf,
+    str::FromStr,
 };
 
 use anyhow::{bail, Result};
@@ -19,6 +21,12 @@ use x25519_dalek::{PublicKey, StaticSecret};
 
 const IPV4_NETWORK_BROADCAST_OVERHEAD: u32 = 2;
 const RESERVED_IPV6_ADDRESS_COUNT: u32 = 1;
+
+fn read_config(path: impl AsRef<str>) -> Result<Meshs> {
+    let mut buf = String::with_capacity(4096);
+    File::open(path.as_ref())?.read_to_string(&mut buf)?;
+    Ok(Meshs::from_json(buf)?)
+}
 
 fn main() -> Result<()> {
     let mut cmd = Cli::command();
@@ -95,9 +103,7 @@ fn main() -> Result<()> {
             } else if !output.exists() {
                 bail!("Output directory does not exist")
             }
-            let mut buf = String::with_capacity(4096);
-            File::open(&*args.config)?.read_to_string(&mut buf)?;
-            let config_map = Conf::default().create_all(Meshs::from_json(buf)?)?;
+            let config_map = Conf::default().create_all(read_config(args.config)?)?;
             let mut tag_warned = false;
             for (tag, config) in config_map {
                 if tag.is_empty() {
@@ -115,6 +121,69 @@ fn main() -> Result<()> {
                 let mut file = OpenOptions::new().write(true).create(true).open(path)?;
                 file.set_len(0)?;
                 write!(file, "{}", config)?;
+            }
+        }
+        Commands::Append {
+            tag,
+            in_place,
+            count,
+        } => {
+            let count = count.unwrap_or(1);
+            let mut meshs = read_config(&args.config)?;
+            let c = meshs.meshs.len() as u32 + count;
+            if c > 16_777_214 {
+                bail!("Total number of meshes exceed 16,777,214")
+            }
+            meshs.ipv4_prefix =
+                (32 - ((c + IPV4_NETWORK_BROADCAST_OVERHEAD) as f64).log2().ceil() as u8).max(0);
+            meshs.ipv6_prefix =
+                (128 - ((c + RESERVED_IPV6_ADDRESS_COUNT) as f64).log2().ceil() as u8).max(0);
+            let mut max_ipv4 = Ipv4Addr::new(10, 0, 0, 0);
+            let mut max_ipv6 = Ipv6Addr::new(0xfd00, 0, 0, 0, 0, 0, 0, 0);
+            for mesh in meshs.iter() {
+                let ipv4 = Ipv4Addr::from_str(&mesh.ipv4).unwrap();
+                let ipv6 = Ipv6Addr::from_str(&mesh.ipv6).unwrap();
+                if ipv4 > max_ipv4 {
+                    max_ipv4 = ipv4;
+                }
+                if ipv6 > max_ipv6 {
+                    max_ipv6 = ipv6;
+                }
+            }
+            let mut rng = rand::thread_rng();
+            let mut meshs_vec = meshs.meshs.into_vec();
+            for (i, _) in (meshs_vec.len() as u32..c).enumerate() {
+                let i = i + 1;
+                let ipv4 = Ipv4Addr::from(u32::from(max_ipv4) + i as u32);
+                let ipv6 = Ipv6Addr::from(u128::from(max_ipv6) + i as u128);
+                let secret = StaticSecret::random_from_rng(&mut rng);
+                let public = PublicKey::from(&secret);
+                let public = STANDARD.encode(public);
+                let secret = STANDARD.encode(secret);
+                meshs_vec.push(Mesh::new(
+                    if count == 1 {
+                        tag.clone()
+                    } else {
+                        format!("{}-{}", tag, i).into_boxed_str()
+                    },
+                    public,
+                    secret,
+                    ipv4.to_string(),
+                    ipv6.to_string(),
+                    "place.holder.local.arpa:51820",
+                ));
+            }
+            meshs.meshs = meshs_vec.into_boxed_slice();
+            let json = meshs.to_json()?;
+            if in_place {
+                let mut file = OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .open(&*args.config)?;
+                file.set_len(0)?;
+                write!(file, "{}", json)?;
+            } else {
+                println!("{}", json);
             }
         }
     }
