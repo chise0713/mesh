@@ -38,17 +38,19 @@ macro_rules! create_boxed_struct {
 }
 
 macro_rules! impl_ip_deserialize {
-    ($type:ty, $parse_fn:path) => {
-        impl<'de> Deserialize<'de> for $type {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: Deserializer<'de>,
-            {
-                let s: Box<str> = Deserialize::deserialize(deserializer)?;
-                $parse_fn(&s).map_err(de::Error::custom)?;
-                Ok(Self(s))
+    ($(($type:ty, $parse_fn:path)),* $(,)?) => {
+        $(
+            impl<'de> Deserialize<'de> for $type {
+                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where
+                    D: Deserializer<'de>,
+                {
+                    let s: Box<str> = Deserialize::deserialize(deserializer)?;
+                    $parse_fn(&s).map_err(de::Error::custom)?;
+                    Ok(Self(s))
+                }
             }
-        }
+        )*
     };
 }
 
@@ -187,8 +189,10 @@ impl<'de> Deserialize<'de> for EndpointBoxStr {
     }
 }
 
-impl_ip_deserialize!(Ipv4BoxStr, Ipv4Addr::from_str);
-impl_ip_deserialize!(Ipv6BoxStr, Ipv6Addr::from_str);
+impl_ip_deserialize!(
+    (Ipv4BoxStr, Ipv4Addr::from_str),
+    (Ipv6BoxStr, Ipv6Addr::from_str)
+);
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Eq, Clone)]
 pub struct Mesh {
