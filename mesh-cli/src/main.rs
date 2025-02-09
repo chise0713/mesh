@@ -1,9 +1,12 @@
 mod cli;
 
 use std::{
+    collections::{BTreeSet, HashSet},
     fs::{File, OpenOptions},
+    hash::Hash,
     io::{self, Read, Write},
     net::{Ipv4Addr, Ipv6Addr},
+    ops::{Add, BitAnd, Not, Shl, Sub},
     path::PathBuf,
     str::FromStr,
 };
@@ -23,9 +26,68 @@ const IPV4_NETWORK_BROADCAST_OVERHEAD: u32 = 2;
 const RESERVED_IPV6_ADDRESS_COUNT: u32 = 1;
 
 fn read_config(path: impl AsRef<str>) -> Result<Meshs> {
-    let mut buf = String::with_capacity(4096);
-    File::open(path.as_ref())?.read_to_string(&mut buf)?;
+    let mut f = File::open(path.as_ref())?;
+    let mut buf = String::with_capacity(f.metadata().unwrap().len() as usize);
+    f.read_to_string(&mut buf)?;
     Ok(Meshs::from_json(buf)?)
+}
+
+trait Ip: Copy + Eq + Hash + Ord {
+    type Int: Copy
+        + From<u8>
+        + Not<Output = Self::Int>
+        + Shl<u8, Output = Self::Int>
+        + Sub<Output = Self::Int>
+        + Add<Output = Self::Int>
+        + PartialOrd
+        + Ord
+        + BitAnd<Output = Self::Int>;
+    const BITS: u8;
+    fn to_int(self) -> Self::Int;
+    fn from_int(n: Self::Int) -> Self;
+}
+
+impl Ip for Ipv4Addr {
+    type Int = u32;
+    const BITS: u8 = 32;
+    fn to_int(self) -> Self::Int {
+        u32::from(self)
+    }
+    fn from_int(n: Self::Int) -> Self {
+        Ipv4Addr::from(n)
+    }
+}
+
+impl Ip for Ipv6Addr {
+    type Int = u128;
+    const BITS: u8 = 128;
+    fn to_int(self) -> Self::Int {
+        u128::from(self)
+    }
+    fn from_int(n: Self::Int) -> Self {
+        Ipv6Addr::from(n)
+    }
+}
+
+fn available_ips<T: Ip>(used_addresses: HashSet<T>, prefix: u8) -> BTreeSet<T> {
+    assert!(prefix <= T::BITS, "Invalid prefix length");
+    let mut available = BTreeSet::new();
+    let first = used_addresses.iter().next().unwrap();
+    let host_bits = T::BITS - prefix;
+    let one = T::Int::from(1);
+    let host_mask = (one << host_bits) - one;
+    let network_address_int = first.to_int() & !host_mask;
+    let range_size = one << host_bits;
+    let mut i = T::Int::from(1);
+    while i < range_size {
+        let address_int = network_address_int + i;
+        let address = T::from_int(address_int);
+        if !used_addresses.contains(&address) {
+            available.insert(address);
+        }
+        i = i + one;
+    }
+    available
 }
 
 fn main() -> Result<()> {
@@ -135,27 +197,29 @@ fn main() -> Result<()> {
                 bail!("Total number of meshes exceed 16,777,214")
             }
             meshs.ipv4_prefix =
-                (32 - ((c + IPV4_NETWORK_BROADCAST_OVERHEAD) as f64).log2().ceil() as u8).max(0);
+                (32 - ((c + IPV4_NETWORK_BROADCAST_OVERHEAD) as f32).log2().ceil() as u8).max(0);
             meshs.ipv6_prefix =
-                (128 - ((c + RESERVED_IPV6_ADDRESS_COUNT) as f64).log2().ceil() as u8).max(0);
-            let mut max_ipv4 = Ipv4Addr::new(10, 0, 0, 0);
-            let mut max_ipv6 = Ipv6Addr::new(0xfd00, 0, 0, 0, 0, 0, 0, 0);
-            for mesh in meshs.iter() {
-                let ipv4 = Ipv4Addr::from_str(&mesh.ipv4).unwrap();
-                let ipv6 = Ipv6Addr::from_str(&mesh.ipv6).unwrap();
-                if ipv4 > max_ipv4 {
-                    max_ipv4 = ipv4;
-                }
-                if ipv6 > max_ipv6 {
-                    max_ipv6 = ipv6;
-                }
-            }
+                (128 - ((c + RESERVED_IPV6_ADDRESS_COUNT) as f32).log2().ceil() as u8).max(0);
+            let mut available_ipv4 = available_ips(
+                meshs
+                    .iter()
+                    .map(|mesh| Ipv4Addr::from_str(&mesh.ipv4).unwrap())
+                    .collect(),
+                meshs.ipv4_prefix,
+            )
+            .into_iter();
+            let mut available_ipv6 = available_ips(
+                meshs
+                    .iter()
+                    .map(|mesh| Ipv6Addr::from_str(&mesh.ipv6).unwrap())
+                    .collect(),
+                meshs.ipv6_prefix,
+            )
+            .into_iter();
             let mut rng = rand::thread_rng();
             let mut meshs_vec = meshs.meshs.into_vec();
             for (i, _) in (meshs_vec.len() as u32..c).enumerate() {
                 let i = i + 1;
-                let ipv4 = Ipv4Addr::from(u32::from(max_ipv4) + i as u32);
-                let ipv6 = Ipv6Addr::from(u128::from(max_ipv6) + i as u128);
                 let secret = StaticSecret::random_from_rng(&mut rng);
                 let public = PublicKey::from(&secret);
                 let public = STANDARD.encode(public);
@@ -168,8 +232,8 @@ fn main() -> Result<()> {
                     },
                     public,
                     secret,
-                    ipv4.to_string(),
-                    ipv6.to_string(),
+                    available_ipv4.next().unwrap().to_string(),
+                    available_ipv6.next().unwrap().to_string(),
                     "place.holder.local.arpa:51820",
                 ));
             }
