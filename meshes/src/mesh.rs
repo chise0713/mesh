@@ -267,11 +267,3 @@ impl Meshs {
 }
 
 impl_json!(Mesh, Meshs);
-
-impl IntoIterator for Meshs {
-    type Item = Mesh;
-    type IntoIter = <Box<[Mesh]> as IntoIterator>::IntoIter;
-    fn into_iter(self) -> Self::IntoIter {
-        self.meshs.to_vec().into_iter()
-    }
-}
