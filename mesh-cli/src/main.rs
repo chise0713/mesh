@@ -1,7 +1,7 @@
 mod cli;
 
 use std::{
-    collections::{BTreeSet, HashSet},
+    collections::HashSet,
     fs::{File, OpenOptions},
     hash::Hash,
     io::{self, Read, Write},
@@ -32,14 +32,30 @@ fn read_config(path: impl AsRef<str>) -> Result<Meshs> {
     Ok(Meshs::from_json(buf)?)
 }
 
+trait TruncateToUsize {
+    fn truncate_to_usize(self) -> usize;
+}
+
+impl TruncateToUsize for u32 {
+    fn truncate_to_usize(self) -> usize {
+        self as usize
+    }
+}
+
+impl TruncateToUsize for u128 {
+    fn truncate_to_usize(self) -> usize {
+        self as usize
+    }
+}
+
 trait Ip: Copy + Eq + Hash + Ord {
     type Int: Copy
+        + TruncateToUsize
         + From<u8>
         + Not<Output = Self::Int>
         + Shl<u8, Output = Self::Int>
         + Sub<Output = Self::Int>
         + Add<Output = Self::Int>
-        + PartialOrd
         + Ord
         + BitAnd<Output = Self::Int>;
     const BITS: u8;
@@ -69,21 +85,21 @@ impl Ip for Ipv6Addr {
     }
 }
 
-fn available_ips<T: Ip>(used_addresses: HashSet<T>, prefix: u8) -> BTreeSet<T> {
+fn available_ips<T: Ip>(used_addresses: HashSet<T>, prefix: u8) -> Vec<T> {
     assert!(prefix <= T::BITS, "Invalid prefix length");
-    let mut available = BTreeSet::new();
     let first = used_addresses.iter().next().unwrap();
     let host_bits = T::BITS - prefix;
     let one = T::Int::from(1);
     let host_mask = (one << host_bits) - one;
     let network_address_int = first.to_int() & !host_mask;
     let range_size = one << host_bits;
-    let mut i = T::Int::from(1);
+    let mut available = Vec::with_capacity(range_size.truncate_to_usize() - 1);
+    let mut i = one;
     while i < range_size {
         let address_int = network_address_int + i;
         let address = T::from_int(address_int);
         if !used_addresses.contains(&address) {
-            available.insert(address);
+            available.push(address);
         }
         i = i + one;
     }
@@ -124,12 +140,12 @@ fn main() -> Result<()> {
             } else {
                 let count = count.unwrap();
                 let ipv4_prefix = (32
-                    - ((count + IPV4_NETWORK_BROADCAST_OVERHEAD) as f64)
+                    - ((count + IPV4_NETWORK_BROADCAST_OVERHEAD) as f32)
                         .log2()
                         .ceil() as u8)
                     .max(0);
                 let ipv6_prefix = (128
-                    - ((count + RESERVED_IPV6_ADDRESS_COUNT) as f64).log2().ceil() as u8)
+                    - ((count + RESERVED_IPV6_ADDRESS_COUNT) as f32).log2().ceil() as u8)
                     .max(0);
                 let mut ipv4 = Ipv4Cidr::new("10.0.0.0".parse()?, ipv4_prefix)?.iter();
                 let mut ipv6 = Ipv6Cidr::new("fd00::".parse()?, ipv6_prefix)?.iter();
