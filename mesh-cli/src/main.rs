@@ -2,9 +2,9 @@ mod cli;
 
 use std::{
     collections::HashSet,
-    fs::{File, OpenOptions},
+    fs::{self, OpenOptions},
     hash::Hash,
-    io::{self, Read, Write},
+    io::{self, Write},
     net::{Ipv4Addr, Ipv6Addr},
     ops::{Add, BitAnd, Not, Shl, Sub},
     path::PathBuf,
@@ -26,9 +26,7 @@ const IPV4_NETWORK_BROADCAST_OVERHEAD: u32 = 2;
 const RESERVED_IPV6_ADDRESS_COUNT: u32 = 1;
 
 fn read_config(path: impl AsRef<str>) -> Result<Meshs> {
-    let mut f = File::open(path.as_ref())?;
-    let mut buf = String::with_capacity(f.metadata().unwrap().len() as usize);
-    f.read_to_string(&mut buf)?;
+    let buf = fs::read_to_string(path.as_ref())?;
     Ok(Meshs::from_json(buf)?)
 }
 
@@ -181,7 +179,7 @@ fn main() -> Result<()> {
             } else if !output.exists() {
                 bail!("Output directory does not exist")
             }
-            let config_map = Conf::default().create_all(read_config(args.config)?)?;
+            let config_map = Conf::new(read_config(args.config)?).create_all()?;
             let mut tag_warned = false;
             for (tag, config) in config_map {
                 if tag.is_empty() {
