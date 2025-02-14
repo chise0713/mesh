@@ -91,7 +91,8 @@ fn available_ips<T: Ip>(used_addresses: HashSet<T>, prefix: u8) -> Vec<T> {
     let host_mask = (one << host_bits) - one;
     let network_address_int = first.to_int() & !host_mask;
     let range_size = one << host_bits;
-    let mut available = Vec::with_capacity(range_size.truncate_to_usize() - 1);
+    let capacity = range_size.truncate_to_usize() - used_addresses.len() - 1;
+    let mut available = Vec::with_capacity(capacity);
     let mut i = one;
     while i < range_size {
         let address_int = network_address_int + i;
