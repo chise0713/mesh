@@ -15,7 +15,7 @@ pub enum Error {
 
 #[derive(Default, Debug)]
 pub struct Conf {
-    meshs: Meshs,
+    pub meshs: Meshs,
 }
 
 impl Conf {
