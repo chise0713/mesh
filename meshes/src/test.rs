@@ -6,14 +6,19 @@ use crate::mesh::{
 
 #[test]
 fn test_eq() {
-    let mesh = Mesh::new(
+    let mut mesh = Mesh::new(
         "1",
         "L+V9o0fNYkMVKNqsX7spBzD/9oSvxM/C7ZCZX1jLO3Q=",
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "10.0.0.1",
         "fd00::1",
-        "test.local.arpa:51820",
+        Some("test.local.arpa:51820"),
     );
+    let meshs_orig = Meshs::new([mesh.clone()], 24, 120);
+    let json = meshs_orig.to_json().unwrap();
+    let meshs_de = Meshs::from_json(json).unwrap();
+    assert_eq!(meshs_orig, meshs_de);
+    mesh.endpoint = None;
     let meshs_orig = Meshs::new([mesh], 24, 120);
     let json = meshs_orig.to_json().unwrap();
     let meshs_de = Meshs::from_json(json).unwrap();
@@ -28,7 +33,7 @@ fn test_de() {
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "10.0.0.1",
         "fd00::1",
-        "test.local.arpa:51820",
+        Some("test.local.arpa:51820"),
     );
     let mut test_fields = vec![
         ("pubkey", String::from("")),
@@ -42,7 +47,7 @@ fn test_de() {
         mesh.key_pair.prikey.clone(),
         mesh.ipv4.0.clone(),
         mesh.ipv6.0.clone(),
-        mesh.endpoint.0.clone(),
+        mesh.endpoint.clone().unwrap().0,
     ];
     for (field, value) in test_fields.iter_mut() {
         match *field {
@@ -50,7 +55,7 @@ fn test_de() {
             "prikey" => mesh.key_pair.prikey = value.clone().into(),
             "ipv4" => mesh.ipv4 = Ipv4BoxStr(value.clone().into()),
             "ipv6" => mesh.ipv6 = Ipv6BoxStr(value.clone().into()),
-            "endpoint" => mesh.endpoint = EndpointBoxStr(value.clone().into()),
+            "endpoint" => mesh.endpoint = Some(EndpointBoxStr(value.clone().into())),
             _ => unreachable!(),
         }
         Mesh::from_json(mesh.to_json().unwrap()).unwrap_err();
@@ -59,7 +64,7 @@ fn test_de() {
             "prikey" => mesh.key_pair.prikey = original_values[1].clone(),
             "ipv4" => mesh.ipv4 = Ipv4BoxStr(original_values[2].clone()),
             "ipv6" => mesh.ipv6 = Ipv6BoxStr(original_values[3].clone()),
-            "endpoint" => mesh.endpoint = EndpointBoxStr(original_values[4].clone()),
+            "endpoint" => mesh.endpoint = Some(EndpointBoxStr(original_values[4].clone())),
             _ => unreachable!(),
         }
     }

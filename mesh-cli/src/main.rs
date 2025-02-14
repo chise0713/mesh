@@ -162,7 +162,7 @@ fn main() -> Result<()> {
                         secret,
                         ipv4.next().unwrap().address().to_string(),
                         ipv6.next().unwrap().address().to_string(),
-                        "place.holder.local.arpa:51820",
+                        Some("place.holder.local.arpa:51820"),
                     ));
                 }
                 write!(
@@ -248,7 +248,7 @@ fn main() -> Result<()> {
                     secret,
                     available_ipv4.next().unwrap().to_string(),
                     available_ipv6.next().unwrap().to_string(),
-                    "place.holder.local.arpa:51820",
+                    Some("place.holder.local.arpa:51820"),
                 ));
             }
             meshs.meshs = meshs_vec.into_boxed_slice();

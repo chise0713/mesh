@@ -31,17 +31,25 @@ impl Conf {
 [Interface]
 # PublicKey = {}
 PrivateKey = {}
+",
+            this_mesh.key_pair.pubkey, this_mesh.key_pair.prikey,
+        )?;
+        if let Some(e) = &this_mesh.endpoint {
+            write!(
+                config,
+                "\
 ListenPort = {}
+",
+                e.split(':').last().unwrap(),
+            )?;
+        }
+        write!(
+            config,
+            "\
 Address = {}/{}
 Address = {}/{}
 ",
-            this_mesh.key_pair.pubkey,
-            this_mesh.key_pair.prikey,
-            this_mesh.endpoint.split(':').last().unwrap(),
-            this_mesh.ipv4,
-            self.meshs.ipv4_prefix,
-            this_mesh.ipv6,
-            self.meshs.ipv6_prefix
+            this_mesh.ipv4, self.meshs.ipv4_prefix, this_mesh.ipv6, self.meshs.ipv6_prefix
         )?;
         for mesh in self.meshs.iter() {
             if mesh == this_mesh {
@@ -52,10 +60,24 @@ Address = {}/{}
                 "
 [Peer]
 PublicKey = {}
+",
+                mesh.key_pair.pubkey
+            )?;
+            if let Some(e) = &mesh.endpoint {
+                write!(
+                    config,
+                    "\
 Endpoint = {}
+",
+                    e
+                )?;
+            }
+            write!(
+                config,
+                "\
 AllowedIPs = {}/32, {}/128
 ",
-                mesh.key_pair.pubkey, mesh.endpoint, mesh.ipv4, mesh.ipv6
+                mesh.ipv4, mesh.ipv6
             )?;
         }
         Ok(config.into())

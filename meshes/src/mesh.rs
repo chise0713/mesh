@@ -28,6 +28,16 @@ macro_rules! create_boxed_struct {
                     &mut self.0
                 }
             }
+            impl From<&str> for $struct_name {
+                fn from(s: &str) -> Self {
+                    Self(Box::from(s))
+                }
+            }
+            impl From<String> for $struct_name {
+                fn from(s: String) -> Self {
+                    Self(s.into_boxed_str())
+                }
+            }
             impl fmt::Display for $struct_name {
                 fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                     write!(f, "{}", self.0)
@@ -201,7 +211,7 @@ pub struct Mesh {
     pub key_pair: KeyPair,
     pub ipv4: Ipv4BoxStr,
     pub ipv6: Ipv6BoxStr,
-    pub endpoint: EndpointBoxStr,
+    pub endpoint: Option<EndpointBoxStr>,
 }
 
 impl Mesh {
@@ -209,19 +219,24 @@ impl Mesh {
         tag: impl Into<Box<str>>,
         pubkey: impl Into<Box<str>>,
         prikey: impl Into<Box<str>>,
-        ipv4: impl Into<Box<str>>,
-        ipv6: impl Into<Box<str>>,
-        endpoint: impl Into<Box<str>>,
+        ipv4: impl Into<Ipv4BoxStr>,
+        ipv6: impl Into<Ipv6BoxStr>,
+        endpoint: Option<impl Into<EndpointBoxStr>>,
     ) -> Self {
+        let endpoint = if endpoint.is_some() {
+            Some(endpoint.unwrap().into())
+        } else {
+            None
+        };
         Mesh {
             tag: tag.into(),
             key_pair: KeyPair {
                 pubkey: pubkey.into(),
                 prikey: prikey.into(),
             },
-            ipv4: Ipv4BoxStr(ipv4.into()),
-            ipv6: Ipv6BoxStr(ipv6.into()),
-            endpoint: EndpointBoxStr(endpoint.into()),
+            ipv4: ipv4.into(),
+            ipv6: ipv6.into(),
+            endpoint,
         }
     }
 }
