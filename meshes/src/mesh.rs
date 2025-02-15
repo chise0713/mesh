@@ -28,14 +28,9 @@ macro_rules! create_boxed_struct {
                     &mut self.0
                 }
             }
-            impl From<&str> for $struct_name {
-                fn from(s: &str) -> Self {
-                    Self(Box::from(s))
-                }
-            }
-            impl From<String> for $struct_name {
-                fn from(s: String) -> Self {
-                    Self(s.into_boxed_str())
+            impl<T: AsRef<str>> From<T> for $struct_name {
+                fn from(s: T) -> Self {
+                    Self(Box::from(s.as_ref()))
                 }
             }
             impl fmt::Display for $struct_name {
