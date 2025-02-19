@@ -218,11 +218,7 @@ impl Mesh {
         ipv6: impl Into<Ipv6BoxStr>,
         endpoint: Option<impl Into<EndpointBoxStr>>,
     ) -> Self {
-        let endpoint = if endpoint.is_some() {
-            Some(endpoint.unwrap().into())
-        } else {
-            None
-        };
+        let endpoint = endpoint.map(|e| e.into());
         Mesh {
             tag: tag.into(),
             key_pair: KeyPair {
