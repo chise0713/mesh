@@ -16,7 +16,7 @@ pub enum Commands {
     #[command(about = "Init a mesh config file")]
     Init {
         /// Number of mesh objects to initialize
-        #[arg(short, long,value_parser = value_parser!(u32).range(0..=16_777_214))]
+        #[arg(short, long, value_parser = value_parser!(u32).range(0..=16_777_214))]
         count: Option<u32>,
     },
 
@@ -33,7 +33,7 @@ pub enum Commands {
         #[arg(short, long)]
         tag: Box<str>,
         /// Number of appending `meshes`
-        #[arg(short, long,value_parser = value_parser!(u32).range(0..=16_777_214))]
+        #[arg(short, long, value_parser = value_parser!(u32).range(0..=16_777_214))]
         count: Option<u32>,
         /// Turn on edit in-place mode
         #[arg(short, long)]
