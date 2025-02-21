@@ -1,0 +1,66 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb-dap",
+            "request": "launch",
+            "name": "Init (no count)",
+            "program": "${workspaceFolder}/target/debug/mesh",
+            "args": [
+                "--config",
+                "config.json",
+                "init"
+            ],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "rust: cargo build"
+        },
+        {
+            "type": "lldb-dap",
+            "request": "launch",
+            "name": "Init (count 2)",
+            "program": "${workspaceFolder}/target/debug/mesh",
+            "args": [
+                "--config",
+                "config.json",
+                "init",
+                "-c",
+                "2"
+            ],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "rust: cargo build"
+        },
+        {
+            "type": "lldb-dap",
+            "request": "launch",
+            "name": "Convert",
+            "program": "${workspaceFolder}/target/debug/mesh",
+            "args": [
+                "--config",
+                "config.json",
+                "convert",
+                "-o",
+                "configs"
+            ],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "rust: cargo build"
+        },
+        {
+            "type": "lldb-dap",
+            "request": "launch",
+            "name": "Append",
+            "program": "${workspaceFolder}/target/debug/mesh",
+            "args": [
+                "--config",
+                "config.json",
+                "append",
+                "-t",
+                "append"
+            ],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "rust: cargo build",
+        }
+    ]
+}
