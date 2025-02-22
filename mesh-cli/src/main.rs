@@ -2,9 +2,9 @@ mod cli;
 
 use std::{
     collections::HashSet,
-    fs::{self, OpenOptions},
+    fs,
     hash::Hash,
-    io::{self, Write},
+    io,
     net::{Ipv4Addr, Ipv6Addr},
     ops::{Add, BitAnd, Not, Shl, Sub},
     path::PathBuf,
@@ -111,7 +111,7 @@ fn main() -> Result<()> {
     let args = Cli::from_arg_matches(&cmd.clone().get_matches())?;
     match args.command {
         Commands::Init { count } => {
-            let path = PathBuf::from(&*args.config);
+            let path = PathBuf::from(args.config.as_ref());
             if path.exists() {
                 eprintln!("Config file already exsits");
                 eprint!("continue? [y/N]");
@@ -125,16 +125,11 @@ fn main() -> Result<()> {
                     bail!("Aborted")
                 }
             }
-            let mut file = OpenOptions::new()
-                .write(true)
-                .create(true)
-                .open(&*args.config)?;
-            file.set_len(0)?;
+            let path = args.config.as_ref();
             if count.is_none() {
-                writeln!(
-                    file,
-                    "{}",
-                    Meshs::new([Mesh::default()], 24, 120).to_json()?
+                fs::write(
+                    path,
+                    Meshs::new([Mesh::default()], 24, 120).to_json()?.as_bytes(),
                 )?;
             } else {
                 let count = count.unwrap();
@@ -166,15 +161,16 @@ fn main() -> Result<()> {
                         Some("place.holder.local.arpa:51820"),
                     ));
                 }
-                write!(
-                    file,
-                    "{}",
-                    Meshs::new(meshs, ipv4_prefix, ipv6_prefix).to_json()?
+                fs::write(
+                    path,
+                    Meshs::new(meshs, ipv4_prefix, ipv6_prefix)
+                        .to_json()?
+                        .as_bytes(),
                 )?;
             }
         }
         Commands::Convert { output } => {
-            let output = PathBuf::from(&*output);
+            let output = PathBuf::from(output.as_ref());
             if output.is_file() {
                 bail!("Output should not be file")
             } else if !output.exists() {
@@ -195,9 +191,7 @@ fn main() -> Result<()> {
                     continue;
                 }
                 let path = output.join(format!("{}.conf", tag));
-                let mut file = OpenOptions::new().write(true).create(true).open(path)?;
-                file.set_len(0)?;
-                write!(file, "{}", config)?;
+                fs::write(path, config.as_bytes())?;
             }
         }
         Commands::Append {
@@ -255,12 +249,7 @@ fn main() -> Result<()> {
             meshs.meshs = meshs_vec.into_boxed_slice();
             let json = meshs.to_json()?;
             if in_place {
-                let mut file = OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .open(&*args.config)?;
-                file.set_len(0)?;
-                write!(file, "{}", json)?;
+                fs::write(args.config.as_ref(), json.as_bytes())?;
             } else {
                 println!("{}", json);
             }
