@@ -133,14 +133,12 @@ fn main() -> Result<()> {
                 )?;
             } else {
                 let count = count.unwrap();
-                let ipv4_prefix = (32
+                let ipv4_prefix = 32
                     - ((count + IPV4_NETWORK_BROADCAST_OVERHEAD) as f32)
                         .log2()
-                        .ceil() as u8)
-                    .max(0);
-                let ipv6_prefix = (128
-                    - ((count + RESERVED_IPV6_ADDRESS_COUNT) as f32).log2().ceil() as u8)
-                    .max(0);
+                        .ceil() as u8;
+                let ipv6_prefix =
+                    128 - ((count + RESERVED_IPV6_ADDRESS_COUNT) as f32).log2().ceil() as u8;
                 let mut ipv4 = Ipv4Cidr::new("10.0.0.0".parse()?, ipv4_prefix)?.iter();
                 let mut ipv6 = Ipv6Cidr::new("fd00::".parse()?, ipv6_prefix)?.iter();
                 ipv4.next().unwrap();
@@ -206,9 +204,9 @@ fn main() -> Result<()> {
                 bail!("Total number of meshes exceed 16,777,214")
             }
             meshs.ipv4_prefix =
-                (32 - ((c + IPV4_NETWORK_BROADCAST_OVERHEAD) as f32).log2().ceil() as u8).max(0);
+                32 - ((c + IPV4_NETWORK_BROADCAST_OVERHEAD) as f32).log2().ceil() as u8;
             meshs.ipv6_prefix =
-                (128 - ((c + RESERVED_IPV6_ADDRESS_COUNT) as f32).log2().ceil() as u8).max(0);
+                128 - ((c + RESERVED_IPV6_ADDRESS_COUNT) as f32).log2().ceil() as u8;
             let mut available_ipv4 = available_ips(
                 meshs
                     .iter()

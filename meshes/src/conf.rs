@@ -7,9 +7,9 @@ use crate::mesh::{Mesh, Meshs};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("{0}")]
+    #[error(transparent)]
     FmtError(#[from] fmt::Error),
-    #[error("{0}")]
+    #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
 }
 
@@ -25,58 +25,52 @@ impl Conf {
 
     pub fn create_single(&self, this_mesh: &Mesh) -> Result<Box<str>, Error> {
         let mut config = String::new();
-        write!(
+        writeln!(
             config,
             "\
 [Interface]
 # PublicKey = {}
-PrivateKey = {}
-",
+PrivateKey = {}",
             this_mesh.key_pair.pubkey, this_mesh.key_pair.prikey,
         )?;
         if let Some(e) = &this_mesh.endpoint {
-            write!(
+            writeln!(
                 config,
                 "\
-ListenPort = {}
-",
+ListenPort = {}",
                 e.split(':').last().unwrap(),
             )?;
         }
-        write!(
+        writeln!(
             config,
             "\
 Address = {}/{}
-Address = {}/{}
-",
+Address = {}/{}",
             this_mesh.ipv4, self.meshs.ipv4_prefix, this_mesh.ipv6, self.meshs.ipv6_prefix
         )?;
         for mesh in self.meshs.iter() {
             if mesh == this_mesh {
                 continue;
             }
-            write!(
+            writeln!(
                 config,
                 "
 [Peer]
-PublicKey = {}
-",
+PublicKey = {}",
                 mesh.key_pair.pubkey
             )?;
             if let Some(e) = &mesh.endpoint {
-                write!(
+                writeln!(
                     config,
                     "\
-Endpoint = {}
-",
+Endpoint = {}",
                     e
                 )?;
             }
-            write!(
+            writeln!(
                 config,
                 "\
-AllowedIPs = {}/32, {}/128
-",
+AllowedIPs = {}/32, {}/128",
                 mesh.ipv4, mesh.ipv6
             )?;
         }

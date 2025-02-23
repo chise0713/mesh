@@ -113,7 +113,7 @@ impl<'de> Deserialize<'de> for KeyPair {
                 let mut prikey_str: Option<&str> = None;
 
                 while let Some(key) = map.next_key::<&str>()? {
-                    match key.as_ref() {
+                    match key {
                         FIELD_PUBKEY => {
                             if pubkey_str.is_some() {
                                 return Err(de::Error::duplicate_field(FIELD_PUBKEY));
@@ -137,10 +137,10 @@ impl<'de> Deserialize<'de> for KeyPair {
                 let prikey_str =
                     prikey_str.ok_or_else(|| de::Error::missing_field(FIELD_PRIKEY))?;
                 let prikey = STANDARD
-                    .decode(&*prikey_str)
+                    .decode(prikey_str)
                     .map_err(|e| de::Error::custom(format!("Failed to decode prikey: {}", e)))?;
                 let pubkey = STANDARD
-                    .decode(&*pubkey_str)
+                    .decode(pubkey_str)
                     .map_err(|e| de::Error::custom(format!("Failed to decode pubkey: {}", e)))?;
                 let ppubkey = PublicKey::from(&StaticSecret::from(
                     <[u8; 32]>::try_from(prikey.as_slice()).map_err(de::Error::custom)?,
