@@ -85,7 +85,7 @@ AllowedIPs = {}/32, {}/128",
             *tag_counts.entry(this_tag).or_insert(0) += 1;
             config_map.insert(this_tag.clone(), self.create_single(mesh)?);
         }
-        let duplicates: Box<[_]> = tag_counts.iter().filter(|(_, &count)| count > 1).collect();
+        let duplicates: Box<[_]> = tag_counts.iter().filter(|&(_, &count)| count > 1).collect();
         if !duplicates.is_empty() {
             const WARN: &str = "\x1b[0;33mWARNING\x1b[0m";
             for (tag, _) in duplicates {
