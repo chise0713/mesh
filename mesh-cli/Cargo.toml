@@ -8,8 +8,8 @@ name = "mesh"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = "1.0.94"
-clap = { version = "4.5.28", features = ["derive"] }
+anyhow = "1.0.97"
+clap = { version = "4.5.32", features = ["derive"] }
 x25519-dalek = { version = "2.0.1", features = ["static_secrets"] }
 rand = "0.8.5"
 base64 = "0.22.1"
