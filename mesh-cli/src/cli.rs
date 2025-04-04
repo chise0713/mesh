@@ -1,4 +1,4 @@
-use clap::{value_parser, Parser, Subcommand};
+use clap::{Parser, Subcommand, value_parser};
 
 #[derive(Parser, Debug)]
 #[clap(subcommand_required = true, arg_required_else_help = true)]

@@ -7,12 +7,12 @@ use std::{
     io,
     net::{Ipv4Addr, Ipv6Addr},
     ops::{Add, BitAnd, Not, Shl, Sub},
-    path::PathBuf,
+    path::Path,
     str::FromStr,
 };
 
-use anyhow::{bail, Result};
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use anyhow::{Result, bail};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use cidr::{Ipv4Cidr, Ipv6Cidr};
 use clap::{CommandFactory, FromArgMatches as _};
 use cli::{Cli, Commands};
@@ -25,7 +25,7 @@ use x25519_dalek::{PublicKey, StaticSecret};
 const IPV4_NETWORK_BROADCAST_OVERHEAD: u32 = 2;
 const RESERVED_IPV6_ADDRESS_COUNT: u32 = 1;
 
-fn read_config(path: impl AsRef<str>) -> Result<Meshs> {
+fn read_config(path: impl AsRef<Path>) -> Result<Meshs> {
     let buf = fs::read_to_string(path.as_ref())?;
     Ok(Meshs::from_json(buf)?)
 }
@@ -111,7 +111,7 @@ fn main() -> Result<()> {
     let args = Cli::from_arg_matches(&cmd.clone().get_matches())?;
     match args.command {
         Commands::Init { count } => {
-            let path = PathBuf::from(args.config.as_ref());
+            let path = Path::new(args.config.as_ref());
             if path.exists() {
                 eprintln!("Config file already exsits");
                 eprint!("continue? [y/N]");
@@ -125,7 +125,6 @@ fn main() -> Result<()> {
                     bail!("Aborted")
                 }
             }
-            let path = args.config.as_ref();
             if count.is_none() {
                 fs::write(
                     path,
@@ -168,13 +167,13 @@ fn main() -> Result<()> {
             }
         }
         Commands::Convert { output } => {
-            let output = PathBuf::from(output.as_ref());
+            let output = Path::new(output.as_ref());
             if output.is_file() {
                 bail!("Output should not be file")
             } else if !output.exists() {
                 bail!("Output directory does not exist")
             }
-            let config_map = Conf::new(read_config(args.config)?).create_all()?;
+            let config_map = Conf::new(read_config(args.config.as_ref())?).create_all()?;
             let mut tag_warned = false;
             for (tag, config) in config_map {
                 if tag.is_empty() {
@@ -198,7 +197,7 @@ fn main() -> Result<()> {
             count,
         } => {
             let count = count.unwrap_or(1);
-            let mut meshs = read_config(&args.config)?;
+            let mut meshs = read_config(args.config.as_ref())?;
             let c = meshs.meshs.len() as u32 + count;
             if c > 16_777_214 {
                 bail!("Total number of meshes exceed 16,777,214")

@@ -5,10 +5,10 @@ use std::{
     str::FromStr,
 };
 
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::{
-    de::{self, MapAccess, Visitor},
     Deserialize, Deserializer, Serialize,
+    de::{self, MapAccess, Visitor},
 };
 use x25519_dalek::{PublicKey, StaticSecret};
 
