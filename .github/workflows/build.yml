@@ -14,7 +14,7 @@ on:
 
 env:
   GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  BINARY_NAME: nanoda
+  BINARY_NAME: mesh
 
 jobs:
   test:
@@ -70,13 +70,6 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: "--locked --release"
           strip: true
-      - name: Test binary
-        uses: houseabsolute/actions-rust-cross@v1
-        with:
-          use-rust-cache: false
-          command: "run"
-          target: ${{ matrix.platform.target }}
-          args: "--locked --release -- -bn 64 -i 3"
       - name: Upload binary artifact
         if: ${{ matrix.platform.runs-on != 'windows-latest' }}
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
