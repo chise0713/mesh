@@ -11,6 +11,23 @@ pub enum Error {
     FmtError(#[from] fmt::Error),
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
+    #[error("duplicate tags: {}", DisplayTags(.0))]
+    DuplicateTags(Box<[Box<str>]>),
+}
+
+struct DisplayTags<'a>(&'a [Box<str>]);
+
+impl<'a> std::fmt::Display for DisplayTags<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[ ")?;
+        for (i, tag) in self.0.iter().enumerate() {
+            write!(f, "\"{}\"", tag)?;
+            if i + 1 != self.0.len() {
+                write!(f, ", ")?;
+            }
+        }
+        write!(f, " ]")
+    }
 }
 
 #[derive(Default, Debug)]
@@ -81,21 +98,19 @@ AllowedIPs = {}/32, {}/128",
         let mut config_map = HashMap::new();
         let mut tag_counts: HashMap<_, usize> = HashMap::new();
         for mesh in self.meshs.iter() {
-            let this_tag = &mesh.tag;
-            *tag_counts.entry(this_tag).or_insert(0) += 1;
-            config_map.insert(this_tag.clone(), self.create_single(mesh)?);
+            let this_tag = mesh.tag.clone();
+            *tag_counts.entry(this_tag.clone()).or_insert(0) += 1;
+            config_map.insert(this_tag, self.create_single(mesh)?);
         }
-        let duplicates: Box<[_]> = tag_counts.iter().filter(|&(_, &count)| count > 1).collect();
-        if !duplicates.is_empty() {
-            const WARN: &str = "\x1b[0;33mWARNING\x1b[0m";
-            for (tag, _) in duplicates {
-                eprintln!("{}: Multiple meshes with the same tag: {:?}", WARN, tag);
-            }
-            eprintln!(
-                "{}: This will occur some overwrite, it should be avoid",
-                WARN
-            );
+        let duplicates: Box<[_]> = tag_counts
+            .into_iter()
+            .filter(|(_, count)| *count > 1)
+            .map(|(tag, _)| tag)
+            .collect();
+        if duplicates.is_empty() {
+            Ok(config_map)
+        } else {
+            Err(Error::DuplicateTags(duplicates))
         }
-        Ok(config_map)
     }
 }

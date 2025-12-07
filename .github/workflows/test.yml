@@ -1,0 +1,61 @@
+name: Unit Tests
+
+on:
+  workflow_call:
+  push:
+    paths:
+      - ".github/workflows/test.yml"
+
+jobs:
+  test_miri:
+    name: Miri Unit Tests
+    uses: ./.github/workflows/test_miri.yml
+  test:
+    name: ${{ matrix.platform.target }}
+    runs-on: ${{ matrix.platform.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          # linux gnu targets
+          - target: x86_64-unknown-linux-gnu
+            runs-on: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            runs-on: ubuntu-latest
+          - target: i686-unknown-linux-gnu
+            runs-on: ubuntu-latest
+          - target: armv7-unknown-linux-gnueabihf
+            runs-on: ubuntu-latest
+          # linux musl targets
+          - target: x86_64-unknown-linux-musl
+            runs-on: ubuntu-latest
+          - target: aarch64-unknown-linux-musl
+            runs-on: ubuntu-latest
+          - target: i686-unknown-linux-musl
+            runs-on: ubuntu-latest
+          - target: armv7-unknown-linux-musleabihf
+            runs-on: ubuntu-latest
+          # windows targets
+          - target: x86_64-pc-windows-gnu
+            runs-on: windows-latest
+          ##- target: i686-pc-windows-gnu
+          ##  runs-on: windows-latest           # error: linker `i686-w64-mingw32-gcc` not found
+          # macOS targets
+          - target: x86_64-apple-darwin
+            runs-on: macos-latest
+          - target: aarch64-apple-darwin
+            runs-on: macos-latest
+        toolchain:
+          - stable
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        with:
+          fetch-depth: 1
+      - name: Run Tests
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          rust-cache-parameters: '{"prefix-key":"cross"}'
+          command: "test"
+          target: ${{ matrix.platform.target }}
+          args: "--all --locked --all-features --verbose"

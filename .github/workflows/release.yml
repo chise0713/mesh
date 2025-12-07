@@ -1,0 +1,45 @@
+name: Release the Binaries
+
+on:
+  push:
+    tags: ["*"]
+
+jobs:
+  build:
+    name: Build Binaries
+    uses: ./.github/workflows/build.yml
+  release:
+    name: Create GitHub Release
+    needs: build
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          path: ./artifacts
+      - name: Rename files
+        run: |
+          src_dir="${{ github.workspace }}/artifacts"
+          out_dir="${{ github.workspace }}/out"
+          mkdir -p "$out_dir"
+          find "$src_dir" -mindepth 1 -maxdepth 1 -type d ! -name "$out_dir" | while read -r dir; do
+              file=$(find "$dir" -maxdepth 1 -type f | head -n 1)
+              [ -z "$file" ] && continue
+              folder_name=$(basename "$dir")
+              cp "$file" "$out_dir/${folder_name}"
+              echo "copied $file → $out_dir/${folder_name}"
+          done
+        shell: bash
+      - name: Create release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+              --repo="${{ github.repository }}" \
+              --title="${{ github.ref_name }}" \
+              --generate-notes --draft \
+              ${{ github.workspace }}/out/*
+        shell: bash
