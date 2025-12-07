@@ -25,5 +25,8 @@
                 "helpers:pinGitHubActionDigests"
             ]
         }
+    ],
+    "ignoreDeps": [
+        "rand"
     ]
 }
