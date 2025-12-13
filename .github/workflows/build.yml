@@ -72,13 +72,13 @@ jobs:
           strip: true
       - name: Upload binary artifact
         if: ${{ matrix.platform.runs-on != 'windows-latest' }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: ${{ env.BINARY_NAME }}-${{ matrix.platform.target }}
           path: target/${{ matrix.platform.target }}/release/${{ env.BINARY_NAME }}
       - name: Upload binary artifact
         if: ${{ matrix.platform.runs-on == 'windows-latest' }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: ${{ env.BINARY_NAME }}-${{ matrix.platform.target }}
           path: target/${{ matrix.platform.target }}/release/${{ env.BINARY_NAME }}.exe
