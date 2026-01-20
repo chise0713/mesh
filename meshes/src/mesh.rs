@@ -2,7 +2,7 @@ use std::{
     fmt,
     net::{Ipv4Addr, Ipv6Addr},
     ops::{Deref, DerefMut},
-    str::FromStr,
+    str::FromStr as _,
 };
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};

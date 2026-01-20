@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fmt::{self, Write},
+    fmt::{self, Write as _},
 };
 
 use crate::mesh::{Mesh, Meshs};
@@ -55,7 +55,7 @@ PrivateKey = {}",
                 config,
                 "\
 ListenPort = {}",
-                e.split(':').last().unwrap(),
+                e.split(':').next_back().unwrap(),
             )?;
         }
         writeln!(

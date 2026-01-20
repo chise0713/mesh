@@ -8,13 +8,13 @@ use std::{
     net::{Ipv4Addr, Ipv6Addr},
     ops::{Add, BitAnd, Not, Shl, Sub},
     path::Path,
-    str::FromStr,
+    str::FromStr as _,
 };
 
 use anyhow::{Result, bail};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use cidr::{Ipv4Cidr, Ipv6Cidr};
-use clap::{CommandFactory, FromArgMatches as _};
+use clap::{CommandFactory as _, FromArgMatches as _};
 use cli::{Cli, Commands};
 use meshes::{
     conf::Conf,
@@ -125,13 +125,7 @@ fn main() -> Result<()> {
                     bail!("Aborted")
                 }
             }
-            if count.is_none() {
-                fs::write(
-                    path,
-                    Meshs::new([Mesh::default()], 24, 120).to_json()?.as_bytes(),
-                )?;
-            } else {
-                let count = count.unwrap();
+            if let Some(count) = count {
                 let ipv4_prefix = 32
                     - ((count + IPV4_NETWORK_BROADCAST_OVERHEAD) as f32)
                         .log2()
@@ -163,6 +157,11 @@ fn main() -> Result<()> {
                     Meshs::new(meshs, ipv4_prefix, ipv6_prefix)
                         .to_json()?
                         .as_bytes(),
+                )?;
+            } else {
+                fs::write(
+                    path,
+                    Meshs::new([Mesh::default()], 24, 120).to_json()?.as_bytes(),
                 )?;
             }
         }

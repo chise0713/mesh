@@ -35,14 +35,14 @@ fn test_de() {
         "fd00::1",
         Some("test.local.arpa:51820"),
     );
-    let mut test_fields = vec![
-        ("pubkey", String::from("")),
-        ("prikey", String::from("")),
-        ("ipv4", String::from("invalid-ip")),
-        ("ipv6", String::from("invalid-ipv6")),
-        ("endpoint", String::from("invalid-endpoint")),
+    let mut test_fields: [(&str, Box<str>); 5] = [
+        ("pubkey", Box::from("")),
+        ("prikey", Box::from("")),
+        ("ipv4", Box::from("invalid-ip")),
+        ("ipv6", Box::from("invalid-ipv6")),
+        ("endpoint", Box::from("invalid-endpoint")),
     ];
-    let original_values = vec![
+    let original_values = [
         mesh.key_pair.pubkey.clone(),
         mesh.key_pair.prikey.clone(),
         mesh.ipv4.0.clone(),
@@ -51,11 +51,11 @@ fn test_de() {
     ];
     for (field, value) in test_fields.iter_mut() {
         match *field {
-            "pubkey" => mesh.key_pair.pubkey = value.clone().into(),
-            "prikey" => mesh.key_pair.prikey = value.clone().into(),
-            "ipv4" => mesh.ipv4 = Ipv4BoxStr(value.clone().into()),
-            "ipv6" => mesh.ipv6 = Ipv6BoxStr(value.clone().into()),
-            "endpoint" => mesh.endpoint = Some(EndpointBoxStr(value.clone().into())),
+            "pubkey" => mesh.key_pair.pubkey = value.clone(),
+            "prikey" => mesh.key_pair.prikey = value.clone(),
+            "ipv4" => mesh.ipv4 = Ipv4BoxStr(value.clone()),
+            "ipv6" => mesh.ipv6 = Ipv6BoxStr(value.clone()),
+            "endpoint" => mesh.endpoint = Some(EndpointBoxStr(value.clone())),
             _ => unreachable!(),
         }
         Mesh::from_json(mesh.to_json().unwrap()).unwrap_err();

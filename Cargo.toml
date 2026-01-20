@@ -2,3 +2,7 @@
 members = ["mesh-cli", "meshes"]
 default-members = ["mesh-cli"]
 resolver = "2"
+
+[workspace.dependencies]
+base64 = "^0.22"
+x25519-dalek = { version = "^2", features = ["static_secrets"] }
