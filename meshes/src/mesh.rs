@@ -112,7 +112,7 @@ impl<'de> Deserialize<'de> for KeyPair {
                 let mut pubkey_str: Option<&str> = None;
                 let mut prikey_str: Option<&str> = None;
 
-                while let Some(key) = map.next_key::<&str>()? {
+                while let Some(key) = map.next_key()? {
                     match key {
                         FIELD_PUBKEY => {
                             if pubkey_str.is_some() {
@@ -175,7 +175,7 @@ impl<'de> Deserialize<'de> for EndpointBoxStr {
     {
         let s: Box<str> = Deserialize::deserialize(deserializer)?;
 
-        let validate = || {
+        fn validate(s: &str) -> Result<(), EndpointParseError> {
             if s.contains('[') && s.contains(']') {
                 let i = s.rfind(']').unwrap();
                 if s[i..].rfind(':').is_none() {
@@ -187,9 +187,9 @@ impl<'de> Deserialize<'de> for EndpointBoxStr {
                 return Err(EndpointParseError::MissingPort);
             }
             Ok(())
-        };
+        }
 
-        validate().map_err(de::Error::custom)?;
+        validate(&s).map_err(de::Error::custom)?;
         Ok(EndpointBoxStr(s))
     }
 }
@@ -264,11 +264,19 @@ impl Meshs {
             ipv6_prefix,
         }
     }
-    pub fn iter(&self) -> impl Iterator<Item = &Mesh> {
-        self.meshs.iter()
+}
+
+impl Deref for Meshs {
+    type Target = [Mesh];
+
+    fn deref(&self) -> &Self::Target {
+        &self.meshs
     }
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Mesh> {
-        self.meshs.iter_mut()
+}
+
+impl DerefMut for Meshs {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.meshs
     }
 }
 

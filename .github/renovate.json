@@ -14,7 +14,12 @@
         {
             "matchCategories": [
                 "rust"
-            ]
+            ],
+            "matchUpdateTypes": [
+                "major",
+                "minor"
+            ],
+            "enabled": true
         },
         {
             "matchManagers": [
@@ -25,8 +30,5 @@
                 "helpers:pinGitHubActionDigests"
             ]
         }
-    ],
-    "ignoreDeps": [
-        "rand"
     ]
 }
