@@ -28,8 +28,13 @@ jobs:
               file=$(find "$dir" -maxdepth 1 -type f | head -n 1)
               [ -z "$file" ] && continue
               folder_name=$(basename "$dir")
-              cp "$file" "$out_dir/${folder_name}"
-              echo "copied $file → $out_dir/${folder_name}"
+              ext="${file##*.}"
+              target="$out_dir/$folder_name"
+              if [ "$ext" = "exe" ]; then
+                target="${target}.exe"
+              fi
+              cp -- "$file" "$target"
+              printf 'copied %s → %s\n' "$file" "$target"
           done
         shell: bash
       - name: Create release
