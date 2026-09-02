@@ -5,4 +5,4 @@ resolver = "3"
 
 [workspace.dependencies]
 base64 = "^0.22"
-x25519-dalek = { version = "^2", features = ["static_secrets"] }
+x25519-dalek = { version = "^3.0.0", features = ["static_secrets"] }
